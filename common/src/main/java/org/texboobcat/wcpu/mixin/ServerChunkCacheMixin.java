@@ -535,7 +535,9 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
     @Nullable
     public ChunkAccess wcpu$getChunkForWorker(int x, int z, ChunkStatus status,
                                                     boolean load) {
-        ChunkHolder holder = this.wcpu$getVisibleChunkIfPresent(ChunkPos.asLong(x, z));
+        // Reads go through the cache's own lookup so chunks served by other mods (Sable plots) are
+        // found; broadcasts and everything else keep using the ChunkMap directly.
+        ChunkHolder holder = getVisibleChunkIfPresent(ChunkPos.asLong(x, z));
         if (holder != null) {
             ChunkAccess chunk = holder.getChunkIfPresent(status);
             if (chunk != null) {
@@ -554,6 +556,13 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
         }
         return null;
     }
+
+    // The cache's own lookup, not the ChunkMap's: other mods patch this method to serve chunks that
+    // live outside the chunk map (Sable's plot chunks for physics structures). Asking the ChunkMap
+    // directly made those chunks look unloaded to region workers.
+    @Shadow
+    @Nullable
+    protected abstract ChunkHolder getVisibleChunkIfPresent(long chunkPos);
 
     @Unique
     @Nullable
