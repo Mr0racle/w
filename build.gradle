@@ -1,0 +1,111 @@
+plugins {
+    id 'base'
+    id 'architectury-plugin' version "${architectury_plugin_version}"
+    id 'dev.architectury.loom' version "${loom_version}" apply false
+    id 'com.github.johnrengelman.shadow' version '8.1.1' apply false
+}
+
+architectury {
+    minecraft = minecraft_version
+}
+
+allprojects {
+    version = rootProject.mod_version
+    group = rootProject.mod_group_id
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url = 'https://maven.fabricmc.net/' }
+        maven { url = 'https://maven.architectury.dev/' }
+        maven { url = 'https://maven.neoforged.net/releases/' }
+        maven { url = 'https://maven.parchmentmc.org/' }
+        maven { url = 'https://cursemaven.com' }
+    }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+    apply plugin: 'idea'
+    apply plugin: 'pmd'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'dev.architectury.loom'
+
+    base {
+        archivesName = "${rootProject.mod_id}-${project.name}"
+    }
+
+    java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+    pmd {
+        toolVersion = '7.16.0'
+        consoleOutput = true
+        ignoreFailures = false
+        ruleSets = []
+        ruleSetFiles = rootProject.files('config/pmd/complexity.xml')
+    }
+
+    tasks.named('pmdTest') {
+        enabled = false
+    }
+
+    dependencies {
+        minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+        mappings loom.layered {
+            officialMojangMappings()
+            parchment("org.parchmentmc.data:parchment-${rootProject.parchment_minecraft_version}:${rootProject.parchment_mappings_version}@zip")
+        }
+
+        testImplementation platform('org.junit:junit-bom:5.10.2')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        testImplementation 'it.unimi.dsi:fastutil:8.5.12'
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 21
+    }
+
+    tasks.named('test', Test) {
+        useJUnitPlatform()
+        workingDir = layout.buildDirectory.dir('test-run').get().asFile
+        doFirst { getWorkingDir().mkdirs() }
+        testLogging {
+            events 'passed', 'failed', 'skipped'
+            exceptionFormat 'full'
+        }
+    }
+
+    idea {
+        module {
+            downloadSources = true
+            downloadJavadoc = true
+        }
+    }
+}
+
+tasks.named('clean') {
+    dependsOn subprojects.collect { "${it.path}:clean" }
+}
+
+tasks.named('build') {
+    dependsOn subprojects.collect { "${it.path}:build" }
+}
+
+tasks.register('test') {
+    group = 'verification'
+    dependsOn subprojects.collect { "${it.path}:test" }
+}
+
+tasks.register('pmdMain') {
+    group = 'verification'
+    dependsOn subprojects.collect { "${it.path}:pmdMain" }
+}
+
+['runClient', 'runClient2', 'runServer', 'runGameTestServer', 'runData'].each { taskName ->
+    tasks.register(taskName) {
+        group = 'mod development'
+        dependsOn ":neoforge:${taskName}"
+    }
+}

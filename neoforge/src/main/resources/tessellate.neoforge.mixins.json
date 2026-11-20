@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.texboobcat.tessellate.neoforge.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "BlockDropCaptureMixin",
+    "NeoForgeLevelMixin",
+    "PersistentEntityCallbackMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
