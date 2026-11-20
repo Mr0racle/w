@@ -20,4 +20,11 @@ class BuiltInCompatibilityTest {
         assertEquals(List.of("createbigcannons:*", "#ritchiesprojectilelib:precise_motion"),
             BuiltInCompatibility.mainThreadEntities(id -> true));
     }
+
+    @Test
+    void blockEntityRulesFollowInstalledMods() {
+        assertTrue(BuiltInCompatibility.mainThreadBlockEntities(id -> false).isEmpty());
+        assertEquals(List.of("simulated:*"),
+            BuiltInCompatibility.mainThreadBlockEntities("simulated"::equals));
+    }
 }

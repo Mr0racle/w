@@ -69,8 +69,8 @@ public final class Wcpu {
         var remoteRules = CompatibilityReporter.loadRemoteRules();
         WcpuApiInternal.configureRemoteMainThreadEntities(
             withBuiltInRules(remoteRules.mainThreadEntities()));
-        WcpuApiInternal.configureRemoteMainThreadBlockEntities(
-            remoteRules.mainThreadBlockEntities());
+        WcpuApiInternal.configureRemoteMainThreadBlockEntities(withBuiltInBlockEntityRules(
+            remoteRules.mainThreadBlockEntities()));
         CompatibilityTicks.configureRemoteEntitySerialization(
             !remoteRules.serializeEntityTickMods().isEmpty());
         if (!remoteRules.mainThreadEntities().isEmpty()) {
@@ -104,6 +104,18 @@ public final class Wcpu {
             dev.architectury.platform.Platform::isModLoaded);
         if (!builtIn.isEmpty()) {
             LOGGER.info("wcpu: built-in compatibility, main-thread entities: {}",
+                String.join(", ", builtIn));
+        }
+        java.util.List<String> all = new java.util.ArrayList<>(remote);
+        all.addAll(builtIn);
+        return all;
+    }
+
+    private static java.util.List<String> withBuiltInBlockEntityRules(java.util.List<String> remote) {
+        java.util.List<String> builtIn = BuiltInCompatibility.mainThreadBlockEntities(
+            dev.architectury.platform.Platform::isModLoaded);
+        if (!builtIn.isEmpty()) {
+            LOGGER.info("wcpu: built-in compatibility, main-thread block entities: {}",
                 String.join(", ", builtIn));
         }
         java.util.List<String> all = new java.util.ArrayList<>(remote);

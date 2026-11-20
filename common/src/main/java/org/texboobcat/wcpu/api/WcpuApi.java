@@ -38,7 +38,7 @@ public final class WcpuApi {
                                       ConcurrentMap<EntityType<?>, Boolean> decisions) {
     }
 
-    private record ConfiguredBlockEntities(Set<ResourceLocation> ids,
+    private record ConfiguredBlockEntities(Set<ResourceLocation> ids, Set<String> namespaces,
                                            ConcurrentMap<BlockEntityType<?>, Boolean> decisions) {
     }
 
@@ -94,12 +94,21 @@ public final class WcpuApi {
 
     static void configureRemoteMainThreadBlockEntities(Collection<String> blockEntityIds) {
         Objects.requireNonNull(blockEntityIds, "blockEntityIds");
-        Set<ResourceLocation> ids = blockEntityIds.stream()
-            .filter(Objects::nonNull)
-            .map(ResourceLocation::tryParse)
-            .filter(Objects::nonNull)
-            .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        remoteBlockEntities = configuredBlockEntities(ids);
+        Set<ResourceLocation> ids = new java.util.HashSet<>();
+        Set<String> namespaces = new java.util.HashSet<>();
+        for (String raw : blockEntityIds) {
+            String entry = raw == null ? "" : raw.strip();
+            if (entry.endsWith(":*")) {
+                namespaces.add(entry.substring(0, entry.length() - 2));
+            } else {
+                ResourceLocation id = ResourceLocation.tryParse(entry);
+                if (id != null) {
+                    ids.add(id);
+                }
+            }
+        }
+        remoteBlockEntities = new ConfiguredBlockEntities(Set.copyOf(ids), Set.copyOf(namespaces),
+            new ConcurrentHashMap<>());
     }
 
     private static ConfiguredEntities parseConfiguredEntities(Collection<String> entries) {
@@ -136,12 +145,15 @@ public final class WcpuApi {
             return true;
         }
         ConfiguredBlockEntities remote = remoteBlockEntities;
-        return remote.decisions().computeIfAbsent(type, candidate ->
-            remote.ids().contains(BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(candidate)));
+        return remote.decisions().computeIfAbsent(type, candidate -> {
+            ResourceLocation key = BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(candidate);
+            return remote.ids().contains(key) || remote.namespaces().contains(key.getNamespace());
+        });
     }
 
     public static boolean hasMainThreadBlockEntityTypes() {
-        return !MAIN_THREAD_BLOCK_ENTITY_TYPES.isEmpty() || !remoteBlockEntities.ids().isEmpty();
+        return !MAIN_THREAD_BLOCK_ENTITY_TYPES.isEmpty() || !remoteBlockEntities.ids().isEmpty()
+            || !remoteBlockEntities.namespaces().isEmpty();
     }
 
     /** Returns whether the current call is executing inside a Wcpu region scope. */
@@ -192,7 +204,7 @@ public final class WcpuApi {
     }
 
     private static ConfiguredBlockEntities configuredBlockEntities(Set<ResourceLocation> ids) {
-        return new ConfiguredBlockEntities(ids, new ConcurrentHashMap<>());
+        return new ConfiguredBlockEntities(ids, Set.of(), new ConcurrentHashMap<>());
     }
 
     /**

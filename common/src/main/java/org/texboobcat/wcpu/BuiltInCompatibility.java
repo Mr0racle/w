@@ -19,6 +19,12 @@ public final class BuiltInCompatibility {
         "ritchiesprojectilelib", List.of("#ritchiesprojectilelib:precise_motion"),
         "createbigcannons", List.of("createbigcannons:*"));
 
+    // Block entities that must tick on the main thread. Simulated's bearings, and the other blocks
+    // that assemble a structure, create a sub-level from inside their own tick, which allocates
+    // plot chunks and touches shared state a region worker does not own.
+    private static final Map<String, List<String>> MAIN_THREAD_BLOCK_ENTITIES = Map.of(
+        "simulated", List.of("simulated:*"));
+
     private BuiltInCompatibility() {
     }
 
@@ -30,6 +36,17 @@ public final class BuiltInCompatibility {
         for (String modId : modIds) {
             if (modLoaded.test(modId)) {
                 entries.addAll(MAIN_THREAD_ENTITIES.get(modId));
+            }
+        }
+        return entries;
+    }
+
+    /** Main-thread block-entity entries for the mods that are loaded, in a stable order. */
+    public static List<String> mainThreadBlockEntities(Predicate<String> modLoaded) {
+        List<String> entries = new ArrayList<>();
+        for (Map.Entry<String, List<String>> rule : MAIN_THREAD_BLOCK_ENTITIES.entrySet()) {
+            if (modLoaded.test(rule.getKey())) {
+                entries.addAll(rule.getValue());
             }
         }
         return entries;
