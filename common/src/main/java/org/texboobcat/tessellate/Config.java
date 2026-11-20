@@ -10,19 +10,13 @@ public final class Config {
 
     public static final List<String> DEFAULT_MAIN_THREAD_ENTITIES =
         List.of("creaturefeature:toadstool", "#ritchiesprojectilelib:precise_motion");
-    public static final String DEFAULT_COMPATIBILITY_RULES_ENDPOINT =
-        "https://kuisavsedtdbmuroharj.supabase.co/rest/v1/"
-            + "tessellate_entity_compatibility_rules";
-    public static final String DEFAULT_COMPATIBILITY_FEATURE_RULES_ENDPOINT =
-        "https://kuisavsedtdbmuroharj.supabase.co/rest/v1/"
-            + "tessellate_mod_compatibility_rules";
-    public static final String COMPATIBILITY_REPORT_FUNCTION_ENDPOINT =
-        "https://kuisavsedtdbmuroharj.supabase.co/functions/v1/tessellate-report";
-    public static final String LEGACY_COMPATIBILITY_REPORT_ENDPOINT =
-        "https://kuisavsedtdbmuroharj.supabase.co/rest/v1/"
-            + "tessellate_compatibility_reports";
-    public static final String DEFAULT_COMPATIBILITY_RULES_API_KEY =
-        "sb_publishable_9rG9js2JGBznNNHWKVphpQ__IRClqQd";
+    // No remote servers: rules are built in (BuiltInCompatibility) and nothing is ever uploaded.
+    // These stay empty so existing config keys keep working but point nowhere.
+    public static final String DEFAULT_COMPATIBILITY_RULES_ENDPOINT = "";
+    public static final String DEFAULT_COMPATIBILITY_FEATURE_RULES_ENDPOINT = "";
+    public static final String COMPATIBILITY_REPORT_FUNCTION_ENDPOINT = "";
+    public static final String LEGACY_COMPATIBILITY_REPORT_ENDPOINT = "";
+    public static final String DEFAULT_COMPATIBILITY_RULES_API_KEY = "";
     private static final Pattern MOD_ID = Pattern.compile("[a-z][a-z0-9_]{1,63}");
 
     private static final Values DEFAULTS = new Values(

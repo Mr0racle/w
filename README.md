@@ -252,45 +252,9 @@ parallelTicking = false
 asyncRegionLoops = false
 ```
 
-Runtime fallbacks always log a suspected mod and source frame locally. Reporting is enabled by
-default and only sends a report when Tessellate encounters a compatibility failure. Set both
-`compatibility.reportEndpoint` and `compatibility.reportApiKey` to `""` to opt out. Reports contain the
-loader/game/mod versions, failure class, failing entity or block-entity type when known, one suspected
-frame, and the loaded mod inventory; they do not contain raw logs, server addresses, world names, or
-player data. Direct client writes to the report and rule tables are denied; ingestion is limited to
-60 reports per source address and 5,000 reports project-wide per hour. Reports remain untrusted and
-must be reviewed before a maintainer promotes a version-scoped compatibility rule.
-
-The reporting service is fail-open. If it is unavailable, Minecraft continues starting and running;
-the failed upload is only logged locally. To self-host the service, run
-`supabase/compatibility_reports.sql`, deploy the `tessellate-report` Edge Function, and replace the
-report endpoint and public key with your project's values.
-
-The same SQL creates maintainer-owned entity and mod compatibility rule tables. At startup, Tessellate
-applies only rules matching a loaded mod, loader, and exact version (or `*`). Remote rules can force an
-entity or block entity onto the main thread, serialize entity ticks, disable parallel natural spawning,
-or force serial region ticking. They can only reduce concurrency; a remote rule never enables a local
-feature. Set `rulesEndpoint = ""` to disable remote rules. Reporting and rule downloads can be
-disabled independently, and submitted reports never create rules. Promote a confirmed entity report
-with SQL like:
-
-```sql
-insert into public.tessellate_entity_compatibility_rules
-    (mod_id, mod_version, loader, entity_type_id, reason)
-values ('example_mod', '1.2.3', 'neoforge', 'example_mod:unsafe_entity',
-        'entity tick uses main-thread-only state');
-```
-
-The `tessellate_mod_compatibility_rules.action` values are `main_thread_block_entity`,
-`serialize_entity_ticks`, `disable_parallel_spawning`, and `force_serial_regions`. Only the block-entity
-action uses `target_id`; the other actions use an empty string.
-
-In Supabase, open `tessellate_entity_compatibility_candidates` or
-`tessellate_mod_compatibility_candidates`. They group repeated failures, show `unreviewed`, `active`, or
-`disabled`, and include ready-to-run `promotion_sql`. Candidate views remain maintainer-only; the public
-rules key cannot read failure reports or candidate details.
-
-Use `compatibility.forceSerialMods` only when the failure cannot be isolated to an entity type.
+Runtime fallbacks always log a suspected mod and source frame locally. This build never contacts
+any server: no reports are uploaded and no rules are downloaded. Compatibility rules ship inside the
+mod (`BuiltInCompatibility`) and switch on by themselves when the affected mod is installed.
 
 ### Commands
 

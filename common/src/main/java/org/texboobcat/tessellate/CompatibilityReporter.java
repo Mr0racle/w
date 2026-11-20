@@ -36,6 +36,9 @@ import java.util.UUID;
 public final class CompatibilityReporter {
 
     private static final Logger LOGGER = LogUtils.getLogger();
+    // Hard switch: this mod never contacts a server, whatever the config says. Rules are built in
+    // (BuiltInCompatibility) and reports stay on the host (log and chat only).
+    static final boolean NETWORK_ENABLED = false;
     private static final HttpClient HTTP = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(3))
         .build();
@@ -60,7 +63,7 @@ public final class CompatibilityReporter {
     }
 
     public static RemoteRules loadRemoteRules() {
-        if (Config.compatibilityRulesEndpoint.isBlank()) {
+        if (!NETWORK_ENABLED || Config.compatibilityRulesEndpoint.isBlank()) {
             return RemoteRules.EMPTY;
         }
         try {
@@ -142,7 +145,7 @@ public final class CompatibilityReporter {
                 CompatibilityTicks.failedBlockEntityTypeId(failure), suspect,
                 mods.stream().map(mod -> new InstalledMod(mod.getModId(), mod.getVersion())).toList());
             notifyPlayers(report, reason);
-            if (!Config.compatibilityReportEndpoint.isBlank()) {
+            if (NETWORK_ENABLED && !Config.compatibilityReportEndpoint.isBlank()) {
                 send(report);
             }
         } catch (RuntimeException | LinkageError reportFailure) {
