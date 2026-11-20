@@ -14,6 +14,7 @@ public final class WcpuNeoForge {
     public WcpuNeoForge(IEventBus modEventBus, ModContainer modContainer) {
         modEventBus.addListener(WcpuNeoForgeConfig::onLoad);
         modContainer.registerConfig(ModConfig.Type.COMMON, WcpuNeoForgeConfig.SPEC);
+        org.texboobcat.wcpu.ConfigBridge.install(new NeoForgeConfigBridge());
         Wcpu.init();
         if (FMLEnvironment.dist == Dist.CLIENT) {
             WcpuNeoForgeClient.init();

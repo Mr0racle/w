@@ -286,6 +286,12 @@ public final class WcpuNeoForgeConfig {
         if (event.getConfig().getSpec() != SPEC) {
             return;
         }
+        apply();
+    }
+
+    // Reads every value into Config. Also called right after /wcpu config changes one, so the change
+    // is live without waiting for the file watcher.
+    static void apply() {
         Config.apply(new Config.Values(
             REGIONS_ENABLED.get(), SECTION_SHIFT.get(), MERGE_RADIUS.get(), VERIFY_INTERVAL.get(),
             SCOPED_ENTITY_TICKING.get(), SCOPED_BLOCK_ENTITY_TICKING.get(),
@@ -302,5 +308,21 @@ public final class WcpuNeoForgeConfig {
             FORCE_SERIAL_MODS.get().stream().map(String::valueOf).toList(),
             REPORT_ENDPOINT.get(), REPORT_API_KEY.get());
         Config.configureCompatibilityRules(RULES_ENDPOINT.get(), RULES_API_KEY.get());
+    }
+
+    // Every setting defined above, found by reflection so new ones appear in /wcpu config on their own.
+    static java.util.List<ModConfigSpec.ConfigValue<?>> allValues() {
+        java.util.List<ModConfigSpec.ConfigValue<?>> values = new java.util.ArrayList<>();
+        for (java.lang.reflect.Field field : WcpuNeoForgeConfig.class.getDeclaredFields()) {
+            if (ModConfigSpec.ConfigValue.class.isAssignableFrom(field.getType())) {
+                try {
+                    field.setAccessible(true);
+                    values.add((ModConfigSpec.ConfigValue<?>) field.get(null));
+                } catch (IllegalAccessException failure) {
+                    throw new IllegalStateException(failure);
+                }
+            }
+        }
+        return values;
     }
 }

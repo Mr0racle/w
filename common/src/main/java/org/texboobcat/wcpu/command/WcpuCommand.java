@@ -38,7 +38,8 @@ public final class WcpuCommand {
     private static final int MAX_REGIONS_SHOWN = 8;
     private static final int MAX_VIOLATION_SITES_SHOWN = 10;
     private static final Set<UUID> VISUALIZERS = new HashSet<>();
-    private static final DustParticleOptions CHUNK_PARTICLE = dust(1.0F, 1.0F, 1.0F);
+    private static final DustParticleOptions CHUNK_PARTICLE = new DustParticleOptions(
+        new Vector3f(1.0F, 1.0F, 1.0F), 2.0F);
     private static final DustParticleOptions IDLE_PARTICLE = dust(0.45F, 0.45F, 0.45F);
     private static final DustParticleOptions[] WORKER_PARTICLES = {
         dust(1.0F, 0.2F, 0.2F), dust(0.2F, 1.0F, 0.2F),
@@ -57,6 +58,7 @@ public final class WcpuCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("wcpu")
             .requires(source -> source.hasPermission(2))
+            .then(WcpuConfigCommand.node())
             .then(Commands.literal("status")
                 .executes(ctx -> WcpuReport.status(ctx.getSource())))
             .then(Commands.literal("regions")
@@ -398,7 +400,7 @@ public final class WcpuCommand {
 
     // Modded clients get the GPU overlay; unmodified clients retain native particles.
     public static void tickVisualization(ServerLevel level) {
-        if (VISUALIZERS.isEmpty() || level.getGameTime() % 10 != 0) {
+        if (VISUALIZERS.isEmpty() || level.getGameTime() % 5 != 0) {
             return;
         }
         LevelRegionIndex index = RegionTracker.index(level);
@@ -436,10 +438,14 @@ public final class WcpuCommand {
             DustParticleOptions regionParticle = region.lastWorkerIndex() < 0
                 ? IDLE_PARTICLE
                 : WORKER_PARTICLES[Math.floorMod(region.lastWorkerIndex(), WORKER_PARTICLES.length)];
-            drawSquare(player.serverLevel(), player, regionParticle, cellX, cellZ, cellSize,
-                Math.max(4, cellSize / 32), y);
+            // Region: dense, large, with tall corner pillars so the zone reads from far away.
+            // Chunk: the player's own chunk, white, with shorter pillars.
+            drawSquare(player.serverLevel(), player, regionParticle, cellX, cellZ, cellSize, 2, y);
+            drawPillars(player.serverLevel(), player, regionParticle, cellX, cellZ, cellSize, y, 24, 2);
             drawSquare(player.serverLevel(), player, CHUNK_PARTICLE,
-                chunk.getMinBlockX(), chunk.getMinBlockZ(), 16, 2, y);
+                chunk.getMinBlockX(), chunk.getMinBlockZ(), 16, 1, y);
+            drawPillars(player.serverLevel(), player, CHUNK_PARTICLE,
+                chunk.getMinBlockX(), chunk.getMinBlockZ(), 16, y, 10, 1);
         }
         player.displayClientMessage(Component.literal(String.format(
             "Wcpu | region #%d | last worker T%d (pooled) | chunk [%d, %d] | rate 1/%d",
@@ -488,13 +494,26 @@ public final class WcpuCommand {
         }
     }
 
+    // Vertical lines on the four corners of a square, from just under the player upward.
+    private static void drawPillars(ServerLevel level, ServerPlayer player,
+                                    DustParticleOptions particle, int minX, int minZ,
+                                    int size, double y, int height, int step) {
+        for (int up = -2; up <= height; up += step) {
+            sendParticle(level, player, particle, minX, y + up, minZ);
+            sendParticle(level, player, particle, minX + size, y + up, minZ);
+            sendParticle(level, player, particle, minX, y + up, minZ + size);
+            sendParticle(level, player, particle, minX + size, y + up, minZ + size);
+        }
+    }
+
     private static void sendParticle(ServerLevel level, ServerPlayer player,
                                      DustParticleOptions particle, double x, double y, double z) {
         level.sendParticles(player, particle, true, x, y, z, 1, 0.0, 0.0, 0.0, 0.0);
     }
 
     private static DustParticleOptions dust(float red, float green, float blue) {
-        return new DustParticleOptions(new Vector3f(red, green, blue), 1.0F);
+        // Scale 3 (the particle cap is 4) so the lines stay visible from a distance.
+        return new DustParticleOptions(new Vector3f(red, green, blue), 3.0F);
     }
 
 }
