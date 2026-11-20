@@ -11,18 +11,18 @@
   "environment": "*",
   "entrypoints": {
     "main": [
-      "org.texboobcat.tessellate.fabric.TessellateFabric"
+      "org.texboobcat.wcpu.fabric.WcpuFabric"
     ],
     "client": [
-      "org.texboobcat.tessellate.fabric.TessellateFabricClient"
+      "org.texboobcat.wcpu.fabric.WcpuFabricClient"
     ],
     "fabric-gametest": [
-      "org.texboobcat.tessellate.fabric.gametest.RegionalChunkGameTests"
+      "org.texboobcat.wcpu.fabric.gametest.RegionalChunkGameTests"
     ]
   },
   "mixins": [
-    "tessellate.mixins.json",
-    "tessellate.fabric.mixins.json"
+    "wcpu.mixins.json",
+    "wcpu.fabric.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",

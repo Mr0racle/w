@@ -26,7 +26,7 @@ jobs:
       - name: Upload NeoForge JAR
         uses: actions/upload-artifact@v7
         with:
-          name: tessellate-neoforge
+          name: wcpu-neoforge
           path: |
             neoforge/build/libs/*.jar
             !neoforge/build/libs/*-sources.jar

@@ -2,7 +2,7 @@
 """Compare region-scoped entity ticking with the vanilla path.
 
 The test alternates both modes against the same loaded world to limit JIT and machine-state drift.
-It confirms each config reload through `/tessellate regions` before collecting a sample.
+It confirms each config reload through `/wcpu regions` before collecting a sample.
 
 Usage:
     python tools/bench_ab.py [--mobs 2500] [--window 10] [--reps 3]
@@ -19,7 +19,7 @@ from pathlib import Path
 from rcon import Rcon, RconError
 from regions import overworld
 
-CONFIG = Path(__file__).resolve().parent.parent / "run" / "config" / "tessellate-common.toml"
+CONFIG = Path(__file__).resolve().parent.parent / "run" / "config" / "wcpu-common.toml"
 
 AREA_A = (512, 512, 639, 639)
 AREA_C = (1536, 512, 1663, 639)
@@ -109,10 +109,10 @@ def setup(rcon, mobs):
             print(f"    {i + 1}/{mobs}")
     time.sleep(3.0)
 
-    rcon.command("scoreboard objectives add tessellatecount dummy")
-    rcon.command("execute in minecraft:overworld store result score #count tessellatecount "
+    rcon.command("scoreboard objectives add wcpucount dummy")
+    rcon.command("execute in minecraft:overworld store result score #count wcpucount "
                  "if entity @e[type=minecraft:zombie]")
-    out = rcon.command("scoreboard players get #count tessellatecount")
+    out = rcon.command("scoreboard players get #count wcpucount")
     m = re.search(r"has (-?\d+) ", out)
     found = int(m.group(1)) if m else -1
     check("the load is actually populated", found == mobs, f"expected {mobs}, found {found}")
@@ -136,7 +136,7 @@ def main():
     args = parser.parse_args()
 
     with Rcon(timeout=180.0) as rcon:
-        print("tessellate A/B: region-scoped vs vanilla entity ticking\n")
+        print("wcpu A/B: region-scoped vs vanilla entity ticking\n")
         if not args.skip_setup:
             setup(rcon, args.mobs)
 

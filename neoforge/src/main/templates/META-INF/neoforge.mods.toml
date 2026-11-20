@@ -25,7 +25,7 @@ displayName = "${mod_name}" #mandatory
 # A URL for the "homepage" for this mod, displayed in the mod UI
 #displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #optional
 # A file name (in the root of the mod JAR) containing a logo for display
-#logoFile="tessellate.png" #optional
+#logoFile="wcpu.png" #optional
 # A text field displayed in the mod UI
 #credits="" #optional
 # A text field displayed in the mod UI
@@ -42,7 +42,7 @@ config = "${mod_id}.mixins.json"
 config = "${mod_id}.neoforge.mixins.json"
 
 # These Lithium optimizations cache mutable state shared by independent region threads.
-# Tessellate supplies safe replacements where needed; entity block caching falls back to
+# Wcpu supplies safe replacements where needed; entity block caching falls back to
 # Lithium's regular collision path.
 ["lithium:options"]
 "mixin.alloc.chunk_random" = false

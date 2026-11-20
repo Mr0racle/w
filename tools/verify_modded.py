@@ -22,7 +22,7 @@ AREA_ORIGIN = (512, 512)
 HALF = 14
 FLOOR_Y = 3
 SPAWN_Y = 5
-TEST_TAG = "tessellate_modded"
+TEST_TAG = "wcpu_modded"
 
 # Chosen to exercise different tick paths: land AI, water AI, flying AI, and swarms.
 CANDIDATE_MOBS = [
@@ -157,12 +157,12 @@ def spawn(rcon, index, mobs, count):
 
 
 def count_entities(rcon, selector):
-    rcon.command("scoreboard objectives add tessellatemod dummy")
+    rcon.command("scoreboard objectives add wcpumod dummy")
     # Unknown registry ids fail before storing a result, so reset the score first.
-    rcon.command("scoreboard players set #m tessellatemod 0")
+    rcon.command("scoreboard players set #m wcpumod 0")
     rcon.command(
-        f"execute in minecraft:overworld store result score #m tessellatemod if entity {selector}")
-    out = rcon.command("scoreboard players get #m tessellatemod")
+        f"execute in minecraft:overworld store result score #m wcpumod if entity {selector}")
+    out = rcon.command("scoreboard players get #m wcpumod")
     match = re.search(r"has (-?\d+) ", out)
     return int(match.group(1)) if match else -1
 
@@ -174,7 +174,7 @@ def fresh_command(command):
 
 
 def status(rcon):
-    out = fresh_command("tessellate regions")
+    out = fresh_command("wcpu regions")
     mode = re.search(r"execution: (.+)", out)
     counters = re.search(
         r"deferred to main thread: (\d+)/(\d+) entity callback\(s\), (\d+)/(\d+) level write", out)
@@ -184,7 +184,7 @@ def status(rcon):
 
 def worker_parallelism(rcon):
     """Return peak concurrent worker calls without relying on a truncated region reply."""
-    out = fresh_command("tessellate phases")
+    out = fresh_command("wcpu phases")
     peaks = [int(value) for value in re.findall(
         r"(?m)^[^:\r\n]+: worker [^\r\n]+? peak (\d+)", out)]
     return max(peaks, default=0)
@@ -198,7 +198,7 @@ def main():
 
     with Rcon(timeout=600.0) as rcon:
         mode, before = status(rcon)
-        print(f"tessellate modded compatibility check\nexecution: {mode}\n")
+        print(f"wcpu modded compatibility check\nexecution: {mode}\n")
 
         for rule, value in [
             ("doMobSpawning", "false"), ("doDaylightCycle", "false"),
@@ -272,7 +272,7 @@ def main():
         check("every deferred level write was replayed", after[2] == after[3],
               f"replayed {after[2]}, deferred {after[3]}")
 
-        violations = rcon.command("tessellate violations")
+        violations = rcon.command("wcpu violations")
         check("zero ownership violations", "no ownership violations" in violations,
               violations.strip().splitlines()[-1] if violations.strip() else "")
 
