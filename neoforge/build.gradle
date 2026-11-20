@@ -31,6 +31,7 @@ loom {
             runDir '../run/gametest'
             property 'neoforge.enableGameTest', 'true'
             property 'neoforge.gameTestServer', 'true'
+            property 'wcpu.workerThreads', '2'
             property 'neoforge.enabledGameTestNamespaces', "${modId},minecraft"
         }
         data {

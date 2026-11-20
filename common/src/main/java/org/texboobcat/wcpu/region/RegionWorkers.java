@@ -44,7 +44,9 @@ public final class RegionWorkers {
         if (scheduler != null) {
             return;
         }
-        int configured = Config.workerThreads;
+        // -Dwcpu.workerThreads=N overrides the config (also used by the GameTest run, which must
+        // have two workers even on a two-core CI machine).
+        int configured = Integer.getInteger("wcpu.workerThreads", Config.workerThreads);
         poolSize = configured > 0
             ? configured
             : Math.max(1, Runtime.getRuntime().availableProcessors() - 2);
