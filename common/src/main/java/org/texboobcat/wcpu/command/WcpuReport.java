@@ -158,6 +158,11 @@ final class WcpuReport {
             return text(Lang.t("✘ Region tracking is disabled"), ChatFormatting.RED);
         }
         if (!RegionTracker.parallelAllowed()) {
+            if (RegionTracker.pausedTemporarily()) {
+                return text(Lang.f("! Parallel ticking paused, %.1f s left: ",
+                    RegionTracker.pauseSecondsLeft()) + RegionTracker.degradeReason(),
+                    ChatFormatting.YELLOW);
+            }
             return text(Lang.t("✘ DEGRADED to serial: ") + RegionTracker.degradeReason(), ChatFormatting.RED);
         }
         if (!RegionWorkers.isRunning()) {

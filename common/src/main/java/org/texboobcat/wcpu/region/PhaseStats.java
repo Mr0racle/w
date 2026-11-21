@@ -75,7 +75,10 @@ public final class PhaseStats {
         try {
             work.run();
         } catch (Throwable failure) {
-            failed(phase);
+            // A worker meeting an unloaded chunk is a pause, not a failure of the phase.
+            if (!ChunkUnavailableException.causedBy(failure)) {
+                failed(phase);
+            }
             throw failure;
         } finally {
             end(phase, start);

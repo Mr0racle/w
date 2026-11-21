@@ -23,6 +23,8 @@ final class LangRu {
         // verdict
         Map.entry("✘ Region tracking is disabled", "✘ Отслеживание регионов выключено"),
         Map.entry("✘ DEGRADED to serial: ", "✘ ПЕРЕХОД на последовательный режим: "),
+        Map.entry("! Parallel ticking paused, %.1f s left: ",
+            "! Параллельная обработка приостановлена, осталось %.1f с: "),
         Map.entry("! Region workers are not running", "! Потоки регионов не запущены"),
         Map.entry("✘ %d ownership violation(s): /wcpu violations",
             "✘ Нарушений владения: %d. Подробнее: /wcpu violations"),

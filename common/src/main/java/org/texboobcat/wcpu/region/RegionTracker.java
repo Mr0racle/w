@@ -186,6 +186,18 @@ public final class RegionTracker {
         }
     }
 
+    // True while parallel ticking is only paused (it resumes by itself), as opposed to degraded
+    // for the rest of the session.
+    public static boolean pausedTemporarily() {
+        return !parallelAllowed && resumeAtNanos != 0L;
+    }
+
+    // Seconds until a temporary pause ends; 0 when there is none.
+    public static double pauseSecondsLeft() {
+        long resume = resumeAtNanos;
+        return resume == 0L ? 0.0 : Math.max(0L, resume - System.nanoTime()) / 1.0e9;
+    }
+
     @Nullable
     public static String degradeReason() {
         return degradeReason;

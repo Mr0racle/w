@@ -28,6 +28,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.slf4j.Logger;
+import org.texboobcat.wcpu.SablePlots;
 import org.texboobcat.wcpu.Config;
 import org.texboobcat.wcpu.PlatformHooks;
 import org.texboobcat.wcpu.guard.RegionThreadContext;
@@ -503,7 +504,9 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
             return;
         }
 
-        cir.setReturnValue(wcpu$getChunkForWorker(x, z, status, load));
+        // Sable plot chunks: answered the way Sable answers them on the main thread.
+        ChunkAccess plot = SablePlots.chunk(this.level, x, z, true);
+        cir.setReturnValue(plot != null ? plot : wcpu$getChunkForWorker(x, z, status, load));
     }
 
     // Vanilla rejects every off-thread getChunkNow call before checking loaded chunks.
@@ -511,6 +514,11 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
     private void wcpu$workerChunkNow(int x, int z,
             CallbackInfoReturnable<LevelChunk> cir) {
         if (!RegionWorkers.isWorkerThread()) {
+            return;
+        }
+        LevelChunk plot = SablePlots.chunk(this.level, x, z, false);
+        if (plot != null) {
+            cir.setReturnValue(plot);
             return;
         }
         ChunkAccess chunk = wcpu$getChunkForWorker(x, z, ChunkStatus.FULL, false);
@@ -525,7 +533,10 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
         if (!RegionWorkers.isWorkerThread()) {
             return;
         }
-        ChunkAccess chunk = wcpu$getChunkForWorker(x, z, status, load);
+        ChunkAccess chunk = SablePlots.chunk(this.level, x, z, true);
+        if (chunk == null) {
+            chunk = wcpu$getChunkForWorker(x, z, status, load);
+        }
         cir.setReturnValue(chunk == null
             ? GenerationChunkHolder.UNLOADED_CHUNK_FUTURE
             : CompletableFuture.completedFuture(ChunkResult.of(chunk)));
