@@ -3,7 +3,7 @@ package org.texboobcat.wcpu;
 import com.mojang.logging.LogUtils;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodType;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -48,9 +48,14 @@ public final class SablePlots {
             Class<?> type = Class.forName("dev.ryanhcode.sable.api.sublevel.SubLevelContainer",
                 false, SablePlots.class.getClassLoader());
             present = true;
-            container = handle(type.getMethod("getContainer", Level.class));
-            bounds = handle(type.getMethod("inBounds", int.class, int.class));
-            chunk = handle(type.getMethod("getChunk", ChunkPos.class));
+            // Linked by name and descriptor, not through Class.getMethod: that reads every method
+            // signature of the class, including getContainer(ClientLevel), and loading a client
+            // class on a dedicated server is refused.
+            container = findStatic(type, "getContainer", MethodType.methodType(type, Level.class));
+            bounds = findVirtual(type, "inBounds",
+                MethodType.methodType(boolean.class, int.class, int.class));
+            chunk = findVirtual(type, "getChunk",
+                MethodType.methodType(LevelChunk.class, ChunkPos.class));
         } catch (ClassNotFoundException absent) {
             // Sable is not installed; nothing to do and nothing to report.
             container = null;
@@ -73,13 +78,22 @@ public final class SablePlots {
     private SablePlots() {
     }
 
-    // Public access first; if the class is not exported to us, try making the method accessible.
-    private static MethodHandle handle(Method method) throws ReflectiveOperationException {
+    // Public access first; if the class is not exported to us, fall back to our own lookup.
+    private static MethodHandle findStatic(Class<?> type, String name, MethodType signature)
+            throws ReflectiveOperationException {
         try {
-            return MethodHandles.publicLookup().unreflect(method);
+            return MethodHandles.publicLookup().findStatic(type, name, signature);
         } catch (IllegalAccessException notExported) {
-            method.setAccessible(true);
-            return MethodHandles.lookup().unreflect(method);
+            return MethodHandles.lookup().findStatic(type, name, signature);
+        }
+    }
+
+    private static MethodHandle findVirtual(Class<?> type, String name, MethodType signature)
+            throws ReflectiveOperationException {
+        try {
+            return MethodHandles.publicLookup().findVirtual(type, name, signature);
+        } catch (IllegalAccessException notExported) {
+            return MethodHandles.lookup().findVirtual(type, name, signature);
         }
     }
 
