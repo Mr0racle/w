@@ -1,0 +1,123 @@
+package org.texboobcat.wcpu;
+
+import java.util.Map;
+
+// Russian texts for Lang. Keys are the English phrases used in the commands.
+final class LangRu {
+
+    static final Map<String, String> PHRASES = Map.ofEntries(
+        // headers and labels
+        Map.entry("status", "статус"), Map.entry("regions", "регионы"),
+        Map.entry("phases", "фазы"), Map.entry("balance", "баланс"),
+        Map.entry("workers", "потоки"),
+        Map.entry("Mode", "Режим"), Map.entry("balancing", "балансировка"),
+        Map.entry("Regions", "Регионы"), Map.entry("ticking chunks", "чанков в тике"),
+        Map.entry("server tick", "тик сервера"), Map.entry("Safety", "Безопасность"),
+        Map.entry("Balancing", "Балансировка"), Map.entry("Last plan", "Последний план"),
+        Map.entry("imbalance", "перекос"), Map.entry("Pool", "Пул"),
+        Map.entry("host cores", "ядер на хосте"), Map.entry("in flight", "в работе"),
+        Map.entry("Steals", "Краж задач"),
+        Map.entry("serial", "последовательный"), Map.entry("async", "асинхронный"),
+        Map.entry("staged (barrier)", "по этапам (барьер)"),
+        Map.entry("ON", "ВКЛ"), Map.entry("OFF", "ВЫКЛ"),
+        // verdict
+        Map.entry("✘ Region tracking is disabled", "✘ Отслеживание регионов выключено"),
+        Map.entry("✘ DEGRADED to serial: ", "✘ ПЕРЕХОД на последовательный режим: "),
+        Map.entry("! Region workers are not running", "! Потоки регионов не запущены"),
+        Map.entry("✘ %d ownership violation(s): /wcpu violations",
+            "✘ Нарушений владения: %d. Подробнее: /wcpu violations"),
+        Map.entry("No active regions", "Активных регионов нет"),
+        Map.entry("region #%d: %.1f ms (%s)", "регион #%d: %.1f мс (%s)"),
+        Map.entry("✘ Bottleneck: ", "✘ Узкое место: "),
+        Map.entry("! Heaviest ", "! Самый тяжёлый: "),
+        Map.entry("✔ Healthy. Heaviest ", "✔ Всё в порядке. Самый тяжёлый: "),
+        Map.entry("no data yet", "данных пока нет"), Map.entry("entities", "сущности"),
+        Map.entry("block entities", "блочные сущности"),
+        Map.entry("scheduled ticks", "запланированные тики"),
+        Map.entry("%d violation(s)", "нарушений: %d"), Map.entry("%d failure(s)", "сбоев: %d"),
+        // regions
+        Map.entry(" - %d region(s), %d ticking chunk(s), merges %d, splits %d",
+            " - регионов: %d, чанков в тике: %d, слияний: %d, разделений: %d"),
+        Map.entry("  ... %d more (/wcpu regions all)", "  ... ещё %d (/wcpu regions all)"),
+        Map.entry("Region #%d\n", "Регион #%d\n"),
+        Map.entry("entities %s\n", "сущности %s\n"),
+        Map.entry("block entities %s\n", "блочные сущности %s\n"),
+        Map.entry("scheduled %s\n", "запланированные %s\n"),
+        Map.entry("queue %d msg\n", "очередь %d сообщ.\n"),
+        Map.entry("CPU %d%% of a tick\n", "CPU %d%% тика\n"),
+        Map.entry("%d section(s), near [%d, %d]\n", "секций: %d, около [%d, %d]\n"),
+        Map.entry("last thread %s", "последний поток %s"),
+        Map.entry("%d ent, %d BE", "%d сущн., %d БС"),
+        Map.entry(" throttled 1/%d", " замедлен 1/%d"),
+        // phases
+        Map.entry(" queued %d, replayed %d, direct %d, pending %d",
+            " в очереди %d, воспроизведено %d, напрямую %d, ожидает %d"),
+        Map.entry("workers %.2f ms/call x%d", "потоки %.2f мс/вызов x%d"),
+        Map.entry("main %.2f ms/call x%d", "главный %.2f мс/вызов x%d"),
+        Map.entry("peak %d", "пик %d"), Map.entry(" %d FAILED", " сбоев: %d"),
+        // balance and workers
+        Map.entry("class changes %d, repacks %d", "смен класса %d, перепаковок %d"),
+        Map.entry("No plan yet (needs 2+ regions ticking)",
+            "Плана пока нет (нужно 2+ региона в тике)"),
+        Map.entry("%d task(s)", "задач: %d"), Map.entry("heavy ", "тяжёлая "),
+        Map.entry("light ", "лёгкая "), Map.entry("regions %s", "регионы %s"),
+        Map.entry("%d thread(s)", "потоков: %d"), Map.entry(" -> %d thread(s)", " -> потоков: %d"),
+        // config command
+        Map.entry("Settings are not available on this loader.",
+            "Настройки недоступны на этом загрузчике."),
+        Map.entry("settings", "настройки"),
+        Map.entry("» settings (hover for details, click to change)",
+            "» настройки (наведите для подробностей, нажмите для изменения)"),
+        Map.entry("default: ", "по умолчанию: "), Map.entry("  range: ", "  диапазон: "),
+        Map.entry("Unknown setting: %s (see /wcpu config)",
+            "Неизвестная настройка: %s (см. /wcpu config)"),
+        Map.entry("Current: ", "Сейчас: "), Map.entry("   Default: ", "   По умолчанию: "),
+        Map.entry("   Range: ", "   Диапазон: "),
+        Map.entry("Saved, but takes effect only after the server is restarted.",
+            "Сохранено, но вступит в силу только после перезапуска сервера."),
+        Map.entry("Change: /wcpu config %s <value>", "Изменить: /wcpu config %s <значение>"),
+        Map.entry("  (saved)", "  (сохранено)"),
+        Map.entry("current value", "текущее значение"), Map.entry("default value", "значение по умолчанию"),
+        Map.entry("%s: value not allowed", "%s: значение не допускается"),
+        Map.entry(" (range %s)", " (диапазон %s)"),
+        Map.entry("%s: expected a number, got '%s'", "%s: ожидалось число, получено '%s'"),
+        Map.entry("%s: expected true or false, got '%s'", "%s: ожидалось true или false, получено '%s'"),
+        // language command
+        Map.entry("Language", "Язык"),
+        Map.entry("Change: /wcpu language <en|ru>", "Изменить: /wcpu language <en|ru>"),
+        Map.entry("Language set to %s.", "Язык: %s."),
+        Map.entry("Unknown language: %s (use en or ru)", "Неизвестный язык: %s (допустимо en или ru)"));
+
+    static final Map<String, String> DESCRIPTIONS = Map.ofEntries(
+        Map.entry("general.language", "Язык сообщений /wcpu: en или ru. Менять можно командой /wcpu language."),
+        Map.entry("regions.enabled", "Отслеживание регионов. Если выключить, мод ничего не делает. Действует после перезапуска."),
+        Map.entry("regions.sectionShift", "Размер ячейки сетки регионов (степень двойки, 2 = 4x4 чанка). Действует после перезапуска."),
+        Map.entry("regions.mergeRadius", "Регионы ближе этого числа секций объединяются в один."),
+        Map.entry("regions.verifyIntervalTicks", "Как часто (в тиках) карта регионов перепроверяется на расхождения. 0 — никогда."),
+        Map.entry("regions.scopedEntityTicking", "Обрабатывать сущности по регионам."),
+        Map.entry("regions.scopedBlockEntityTicking", "Обрабатывать блочные сущности по регионам."),
+        Map.entry("regions.scopedScheduledTicks", "Запланированные тики блоков и жидкостей принадлежат регионам. Действует после перезапуска."),
+        Map.entry("regions.scopedBlockEvents", "Очереди блочных событий принадлежат регионам."),
+        Map.entry("regions.adaptiveThrottling", "Региональная система TPS: замедляет только самый дорогой регион, если сервер не укладывается в тик."),
+        Map.entry("regions.budgetMillis", "Минимальный бюджет времени (мс), который сохраняется для работы регионов."),
+        Map.entry("regions.targetTickMillis", "Целевое время тика (мс). Чем больше, тем позже мод начнёт замедлять регионы."),
+        Map.entry("regions.minThrottleMillis", "Регионы дешевле этого значения (мс) никогда не замедляются."),
+        Map.entry("regions.maxTickDivisor", "Во сколько раз максимум можно замедлить регион (16 = 1,25 TPS)."),
+        Map.entry("regions.shardEntityStorage", "Изоляция хранилища сущностей, нужная для параллельной обработки. Действует после перезапуска."),
+        Map.entry("regions.assertShardOwnership", "Отладка: проверять владение хранилищем сущностей. Включать только при поиске ошибок."),
+        Map.entry("regions.parallelTicking", "Обрабатывать регионы в рабочих потоках (на разных ядрах)."),
+        Map.entry("regions.directWorkerChunkReads", "Рабочие потоки читают уже загруженные чанки напрямую."),
+        Map.entry("regions.parallelNaturalSpawning", "Поиск мест для естественного спавна в регионах выполняется одновременно."),
+        Map.entry("regions.asyncRegionLoops", "Независимые циклы регионов без общего барьера на каждый тик."),
+        Map.entry("regions.workerThreads", "Число рабочих потоков. 0 — автоматически (ядра процессора минус 2)."),
+        Map.entry("regions.threadLocalRandom", "Отдельное состояние генератора случайных чисел на поток. Нужно для параллельной обработки."),
+        Map.entry("compatibility.serializeEntityTicks", "Тела тиков сущностей не пересекаются между потоками. Запасной вариант совместимости."),
+        Map.entry("compatibility.mainThreadEntities", "Типы сущностей, которые обрабатываются в главном потоке. Принимает id (mod:entity), целый мод (mod:*) и теги (#mod:tag). Нужно для снарядов Create Big Cannons / Ritchie's Projectile Library."),
+        Map.entry("compatibility.forceSerialMods", "id модов, при наличии которых регионы обрабатываются последовательно. Временное решение."),
+        Map.entry("guard.diagnoseEntitySectionRaces", "Записывать в лог подозрения на гонки секций сущностей."),
+        Map.entry("guard.strict", "Строгая защита: нарушение владения роняет сервер. На обычном сервере оставьте выключенным."),
+        Map.entry("guard.logRegionChanges", "Записывать в лог каждое создание, слияние и разделение региона. Очень шумно."));
+
+    private LangRu() {
+    }
+}

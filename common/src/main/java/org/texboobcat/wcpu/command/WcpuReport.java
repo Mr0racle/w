@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.texboobcat.wcpu.Config;
+import org.texboobcat.wcpu.Lang;
 import org.texboobcat.wcpu.region.LevelRegionIndex;
 import org.texboobcat.wcpu.region.LoadBalancePlanner;
 import org.texboobcat.wcpu.region.MainThreadBoundaries;
@@ -56,11 +57,11 @@ final class WcpuReport {
     private static MutableComponent header(String title) {
         return text("wcpu ", ChatFormatting.GOLD, ChatFormatting.BOLD)
             .append(text("» ", ChatFormatting.DARK_GRAY))
-            .append(text(title, ChatFormatting.GRAY));
+            .append(text(Lang.t(title), ChatFormatting.GRAY));
     }
 
     private static MutableComponent label(String name, MutableComponent value) {
-        return text(name + " ", ChatFormatting.DARK_AQUA).append(value);
+        return text(Lang.t(name) + " ", ChatFormatting.DARK_AQUA).append(value);
     }
 
     private static MutableComponent sep() {
@@ -87,16 +88,16 @@ final class WcpuReport {
         double scheduled = load.average(RegionLoad.Metric.SCHEDULED);
         double sum = entities + blockEntities + scheduled;
         if (sum <= 0.0) {
-            return "no data yet";
+            return Lang.t("no data yet");
         }
-        String name = "entities";
+        String name = Lang.t("entities");
         double top = entities;
         if (blockEntities > top) {
-            name = "block entities";
+            name = Lang.t("block entities");
             top = blockEntities;
         }
         if (scheduled > top) {
-            name = "scheduled ticks";
+            name = Lang.t("scheduled ticks");
             top = scheduled;
         }
         return name + " " + Math.round(100.0 * top / sum) + "%";
@@ -124,8 +125,8 @@ final class WcpuReport {
     static int status(CommandSourceStack source) {
         send(source, header("status"));
         send(source, verdict());
-        String mode = !Config.parallelTicking ? "serial"
-            : Config.asyncRegionLoops ? "async" : "staged (barrier)";
+        String mode = Lang.t(!Config.parallelTicking ? "serial"
+            : Config.asyncRegionLoops ? "async" : "staged (barrier)");
         send(source, label("Mode", text(mode, ChatFormatting.WHITE))
             .append(sep()).append(label("workers", text(String.valueOf(RegionWorkers.poolSize()), ChatFormatting.WHITE)))
             .append(sep()).append(label("balancing", flag(RegionWorkers.balancing()))));
@@ -141,46 +142,45 @@ final class WcpuReport {
                 level(RegionTracker.serverTickNanos() / 1_000_000.0)))));
         long violations = RegionTracker.violations().total();
         long failures = phaseFailures();
-        send(source, label("Safety", text(violations + " violation(s)",
+        send(source, label("Safety", text(Lang.f("%d violation(s)", violations),
                 violations == 0 ? ChatFormatting.GREEN : ChatFormatting.RED))
-            .append(sep()).append(text(failures + " failure(s)",
+            .append(sep()).append(text(Lang.f("%d failure(s)", failures),
                 failures == 0 ? ChatFormatting.GREEN : ChatFormatting.RED)));
         return regions;
     }
 
     private static MutableComponent flag(boolean on) {
-        return on ? text("ON", ChatFormatting.GREEN) : text("OFF", ChatFormatting.RED);
+        return on ? text(Lang.t("ON"), ChatFormatting.GREEN) : text(Lang.t("OFF"), ChatFormatting.RED);
     }
 
     private static MutableComponent verdict() {
         if (!Config.regionsEnabled) {
-            return text("✘ Region tracking is disabled", ChatFormatting.RED);
+            return text(Lang.t("✘ Region tracking is disabled"), ChatFormatting.RED);
         }
         if (!RegionTracker.parallelAllowed()) {
-            return text("✘ DEGRADED to serial: " + RegionTracker.degradeReason(), ChatFormatting.RED);
+            return text(Lang.t("✘ DEGRADED to serial: ") + RegionTracker.degradeReason(), ChatFormatting.RED);
         }
         if (!RegionWorkers.isRunning()) {
-            return text("! Region workers are not running", ChatFormatting.YELLOW);
+            return text(Lang.t("! Region workers are not running"), ChatFormatting.YELLOW);
         }
         if (RegionTracker.violations().total() > 0) {
-            return text("✘ " + RegionTracker.violations().total() + " ownership violation(s): /wcpu violations",
-                ChatFormatting.RED);
+            return text(Lang.f("✘ %d ownership violation(s): /wcpu violations",
+                RegionTracker.violations().total()), ChatFormatting.RED);
         }
         List<Region> regions = allRegions();
         if (regions.isEmpty()) {
-            return text("No active regions", ChatFormatting.GRAY);
+            return text(Lang.t("No active regions"), ChatFormatting.GRAY);
         }
         Region worst = regions.get(0);
         double ms = costMs(worst);
-        String detail = "region #" + worst.id() + ": " + String.format("%.1f ms", ms)
-            + " (" + dominant(worst.load()) + ")";
+        String detail = Lang.f("region #%d: %.1f ms (%s)", worst.id(), ms, dominant(worst.load()));
         if (ms >= BAD_MS) {
-            return text("✘ Bottleneck: " + detail, ChatFormatting.RED);
+            return text(Lang.t("✘ Bottleneck: ") + detail, ChatFormatting.RED);
         }
         if (ms >= WARN_MS) {
-            return text("! Heaviest " + detail, ChatFormatting.YELLOW);
+            return text(Lang.t("! Heaviest ") + detail, ChatFormatting.YELLOW);
         }
-        return text("✔ Healthy. Heaviest " + detail, ChatFormatting.GREEN);
+        return text(Lang.t("✔ Healthy. Heaviest ") + detail, ChatFormatting.GREEN);
     }
 
     // ---- regions -----------------------------------------------------------------------------
@@ -192,14 +192,14 @@ final class WcpuReport {
             List<Region> regions = new ArrayList<>(index.regionizer().regions());
             regions.sort(Comparator.comparingDouble(WcpuReport::costMs).reversed());
             send(source, text(index.levelKey(), ChatFormatting.AQUA)
-                .append(text(" - " + regions.size() + " region(s), " + index.tickingChunkCount()
-                    + " ticking chunk(s), merges " + index.regionizer().mergeCount()
-                    + ", splits " + index.regionizer().splitCount(), ChatFormatting.GRAY)));
+                .append(text(Lang.f(" - %d region(s), %d ticking chunk(s), merges %d, splits %d",
+                    regions.size(), index.tickingChunkCount(), index.regionizer().mergeCount(),
+                    index.regionizer().splitCount()), ChatFormatting.GRAY)));
             int shown = 0;
             for (Region region : regions) {
                 if (!all && shown++ >= DEFAULT_ROWS) {
-                    send(source, text("  ... " + (regions.size() - DEFAULT_ROWS)
-                        + " more (/wcpu regions all)", ChatFormatting.DARK_GRAY));
+                    send(source, text(Lang.f("  ... %d more (/wcpu regions all)",
+                        regions.size() - DEFAULT_ROWS), ChatFormatting.DARK_GRAY));
                     break;
                 }
                 send(source, regionRow(source, index, region));
@@ -207,7 +207,7 @@ final class WcpuReport {
             total += regions.size();
         }
         if (total == 0) {
-            send(source, text("No active regions", ChatFormatting.GRAY));
+            send(source, text(Lang.t("No active regions"), ChatFormatting.GRAY));
         }
         return total;
     }
@@ -220,24 +220,24 @@ final class WcpuReport {
         int blockX = RegionSectionPos.x(anySection) << (shift + 4);
         int blockZ = RegionSectionPos.z(anySection) << (shift + 4);
 
-        MutableComponent hover = text("Region #" + region.id() + "\n", ChatFormatting.GOLD)
-            .append(text("entities " + ms(load.average(RegionLoad.Metric.ENTITY)) + "\n", ChatFormatting.GRAY))
-            .append(text("block entities " + ms(load.average(RegionLoad.Metric.BLOCK_ENTITY)) + "\n", ChatFormatting.GRAY))
-            .append(text("scheduled " + ms(load.average(RegionLoad.Metric.SCHEDULED)) + "\n", ChatFormatting.GRAY))
-            .append(text("queue " + Math.round(load.average(RegionLoad.Metric.QUEUE)) + " msg\n", ChatFormatting.GRAY))
-            .append(text("CPU " + Math.round(100.0 * load.average(RegionLoad.Metric.CPU)) + "% of a tick\n", ChatFormatting.GRAY))
-            .append(text(region.sectionCount() + " section(s), near [" + blockX + ", " + blockZ + "]\n", ChatFormatting.GRAY))
-            .append(text("last thread " + region.lastThreadName(), ChatFormatting.GRAY));
+        MutableComponent hover = text(Lang.f("Region #%d\n", region.id()), ChatFormatting.GOLD)
+            .append(text(Lang.f("entities %s\n", ms(load.average(RegionLoad.Metric.ENTITY))), ChatFormatting.GRAY))
+            .append(text(Lang.f("block entities %s\n", ms(load.average(RegionLoad.Metric.BLOCK_ENTITY))), ChatFormatting.GRAY))
+            .append(text(Lang.f("scheduled %s\n", ms(load.average(RegionLoad.Metric.SCHEDULED))), ChatFormatting.GRAY))
+            .append(text(Lang.f("queue %d msg\n", Math.round(load.average(RegionLoad.Metric.QUEUE))), ChatFormatting.GRAY))
+            .append(text(Lang.f("CPU %d%% of a tick\n", Math.round(100.0 * load.average(RegionLoad.Metric.CPU))), ChatFormatting.GRAY))
+            .append(text(Lang.f("%d section(s), near [%d, %d]\n", region.sectionCount(), blockX, blockZ), ChatFormatting.GRAY))
+            .append(text(Lang.f("last thread %s", region.lastThreadName()), ChatFormatting.GRAY));
         MutableComponent row = text("#" + region.id() + " ", ChatFormatting.WHITE)
             .append(bar(ms))
             .append(text(" " + String.format("%.1f ms", ms), level(ms)))
             .append(text(" " + dominant(load), ChatFormatting.GRAY))
             .append(sep())
-            .append(text(load.entityCount() + " ent, " + load.blockEntityCount() + " BE", ChatFormatting.WHITE))
+            .append(text(Lang.f("%d ent, %d BE", load.entityCount(), load.blockEntityCount()), ChatFormatting.WHITE))
             .append(sep())
             .append(text("T" + region.lastWorkerIndex(), ChatFormatting.DARK_AQUA));
         if (region.tickDivisor() > 1) {
-            row.append(text(" throttled 1/" + region.tickDivisor(), ChatFormatting.YELLOW));
+            row.append(text(Lang.f(" throttled 1/%d", region.tickDivisor()), ChatFormatting.YELLOW));
         }
         boolean sameLevel = index.levelKey().equals(source.getLevel().dimension().location().toString());
         return row.withStyle(style -> {
@@ -272,8 +272,8 @@ final class WcpuReport {
     private static MutableComponent boundaryRow(MainThreadBoundaries.Snapshot boundary) {
         boolean bad = !boundary.balanced() || boundary.queuedFailures() + boundary.directFailures() > 0;
         return text("» " + boundary.boundary().label(), ChatFormatting.DARK_AQUA)
-            .append(text(" queued " + boundary.queued() + ", replayed " + boundary.replayed()
-                + ", direct " + boundary.directCalls() + ", pending " + boundary.pending(),
+            .append(text(Lang.f(" queued %d, replayed %d, direct %d, pending %d", boundary.queued(),
+                boundary.replayed(), boundary.directCalls(), boundary.pending()),
                 ChatFormatting.GRAY))
             .append(text(bad ? " ✘" : " ✔", bad ? ChatFormatting.RED : ChatFormatting.GREEN));
     }
@@ -282,13 +282,13 @@ final class WcpuReport {
         double workerAvg = phase.workerCalls() == 0 ? 0.0 : phase.workerNanos() / 1_000_000.0 / phase.workerCalls();
         double mainAvg = phase.mainCalls() == 0 ? 0.0 : phase.mainNanos() / 1_000_000.0 / phase.mainCalls();
         MutableComponent row = text(phase.phase().label() + " ", ChatFormatting.WHITE)
-            .append(text(String.format("workers %.2f ms/call x%d", workerAvg, phase.workerCalls()),
+            .append(text(Lang.f("workers %.2f ms/call x%d", workerAvg, phase.workerCalls()),
                 phase.workerCalls() == 0 ? ChatFormatting.DARK_GRAY : level(workerAvg * 10)));
-        row.append(sep()).append(text(String.format("main %.2f ms/call x%d", mainAvg, phase.mainCalls()),
+        row.append(sep()).append(text(Lang.f("main %.2f ms/call x%d", mainAvg, phase.mainCalls()),
             phase.mainCalls() == 0 ? ChatFormatting.DARK_GRAY : level(mainAvg * 10)));
-        row.append(sep()).append(text("peak " + phase.maxConcurrent(), ChatFormatting.GRAY));
+        row.append(sep()).append(text(Lang.f("peak %d", phase.maxConcurrent()), ChatFormatting.GRAY));
         if (phase.failures() > 0) {
-            row.append(text(" " + phase.failures() + " FAILED", ChatFormatting.RED));
+            row.append(text(Lang.f(" %d FAILED", phase.failures()), ChatFormatting.RED));
         }
         return row;
     }
@@ -304,28 +304,28 @@ final class WcpuReport {
             repacks += index.planner().repacks();
         }
         send(source, label("Balancing", flag(RegionWorkers.balancing()))
-            .append(sep()).append(text("class changes " + changes + ", repacks " + repacks, ChatFormatting.GRAY)));
+            .append(sep()).append(text(Lang.f("class changes %d, repacks %d", changes, repacks), ChatFormatting.GRAY)));
         LoadBalancePlanner.Plan plan = RegionWorkers.lastPlan();
         if (plan == null) {
-            send(source, text("No plan yet (needs 2+ regions ticking)", ChatFormatting.GRAY));
+            send(source, text(Lang.t("No plan yet (needs 2+ regions ticking)"), ChatFormatting.GRAY));
             return 0;
         }
         ChatFormatting tone = plan.imbalance() > 1.5 ? ChatFormatting.YELLOW : ChatFormatting.GREEN;
-        send(source, label("Last plan", text(plan.groups().size() + " task(s)", ChatFormatting.WHITE))
+        send(source, label("Last plan", text(Lang.f("%d task(s)", plan.groups().size()), ChatFormatting.WHITE))
             .append(sep()).append(label("imbalance", text(String.format("%.2fx", plan.imbalance()), tone))));
         for (LoadBalancePlanner.Group group : plan.groups()) {
             double groupMs = group.costNanos() / 1_000_000.0;
-            send(source, text(group.heavy() ? "heavy " : "light ", group.heavy() ? ChatFormatting.RED : ChatFormatting.GREEN)
+            send(source, text(Lang.t(group.heavy() ? "heavy " : "light "), group.heavy() ? ChatFormatting.RED : ChatFormatting.GREEN)
                 .append(bar(groupMs))
                 .append(text(String.format(" %.1f ms ", groupMs), level(groupMs)))
-                .append(text("regions " + group.regionIds(), ChatFormatting.GRAY)));
+                .append(text(Lang.f("regions %s", group.regionIds()), ChatFormatting.GRAY)));
         }
         return plan.groups().size();
     }
 
     static int workers(CommandSourceStack source) {
         send(source, header("workers"));
-        send(source, label("Pool", text(RegionWorkers.poolSize() + " thread(s)", ChatFormatting.WHITE))
+        send(source, label("Pool", text(Lang.f("%d thread(s)", RegionWorkers.poolSize()), ChatFormatting.WHITE))
             .append(sep()).append(label("host cores",
                 text(String.valueOf(Runtime.getRuntime().availableProcessors()), ChatFormatting.WHITE)))
             .append(sep()).append(label("in flight", text(String.valueOf(RegionWorkers.activeTasks()), ChatFormatting.WHITE))));
@@ -338,7 +338,7 @@ final class WcpuReport {
 
     static int setWorkers(CommandSourceStack source, int threads) {
         RegionWorkers.resize(threads);
-        send(source, header("workers").append(text(" -> " + RegionWorkers.poolSize() + " thread(s)", ChatFormatting.GREEN)));
+        send(source, header("workers").append(text(Lang.f(" -> %d thread(s)", RegionWorkers.poolSize()), ChatFormatting.GREEN)));
         return RegionWorkers.poolSize();
     }
 

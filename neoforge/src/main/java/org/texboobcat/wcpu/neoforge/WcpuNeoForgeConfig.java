@@ -269,6 +269,10 @@ public final class WcpuNeoForgeConfig {
             "rather than crashing the server.")
         .define("guard.strict", false);
 
+    private static final ModConfigSpec.ConfigValue<String> LANGUAGE = BUILDER
+        .comment("Language of the /wcpu command output: en or ru. Change it in game with /wcpu language.")
+        .defineInList("general.language", "en", java.util.List.of("en", "ru"));
+
     private static final ModConfigSpec.BooleanValue LOG_REGION_CHANGES = BUILDER
         .comment("Log every region create/merge/split/destroy. Very noisy; development only.")
         .define("guard.logRegionChanges", false);
@@ -301,6 +305,7 @@ public final class WcpuNeoForgeConfig {
     }
 
     static void apply() {
+        org.texboobcat.wcpu.Lang.set(LANGUAGE.get());
         Config.apply(new Config.Values(
             atStartup(REGIONS_ENABLED), atStartup(SECTION_SHIFT), MERGE_RADIUS.get(), VERIFY_INTERVAL.get(),
             SCOPED_ENTITY_TICKING.get(), SCOPED_BLOCK_ENTITY_TICKING.get(),

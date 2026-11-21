@@ -59,6 +59,7 @@ public final class WcpuCommand {
         dispatcher.register(Commands.literal("wcpu")
             .requires(source -> source.hasPermission(2))
             .then(WcpuConfigCommand.node())
+            .then(WcpuConfigCommand.languageNode())
             .then(Commands.literal("status")
                 .executes(ctx -> WcpuReport.status(ctx.getSource())))
             .then(Commands.literal("regions")

@@ -2,6 +2,7 @@ package org.texboobcat.wcpu.neoforge;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 import org.texboobcat.wcpu.ConfigBridge;
+import org.texboobcat.wcpu.Lang;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +21,8 @@ final class NeoForgeConfigBridge implements ConfigBridge {
             }
             ModConfigSpec.ValueSpec spec = spec(value);
             Object range = spec.getRange();
-            entries.add(new Entry(path, spec.getComment() == null ? "" : spec.getComment(),
+            entries.add(new Entry(path,
+                Lang.description(path, spec.getComment() == null ? "" : spec.getComment()),
                 String.valueOf(value.get()), String.valueOf(spec.getDefault()),
                 range == null ? "" : String.valueOf(range), WcpuNeoForgeConfig.needsRestart(path)));
         }
@@ -31,18 +33,19 @@ final class NeoForgeConfigBridge implements ConfigBridge {
     public String set(String path, String raw) {
         ModConfigSpec.ConfigValue<?> value = find(path);
         if (value == null) {
-            return "Unknown setting: " + path + " (see /wcpu config)";
+            return Lang.f("Unknown setting: %s (see /wcpu config)", path);
         }
         ModConfigSpec.ValueSpec spec = spec(value);
         Object parsed;
         try {
-            parsed = parse(spec.getDefault(), raw.strip());
+            parsed = parse(path, spec.getDefault(), raw.strip());
         } catch (IllegalArgumentException failure) {
-            return path + ": " + failure.getMessage();
+            return failure.getMessage();
         }
         if (!spec.test(parsed)) {
             Object range = spec.getRange();
-            return path + ": value not allowed" + (range == null ? "" : " (range " + range + ")");
+            return Lang.f("%s: value not allowed", path)
+                + (range == null ? "" : Lang.f(" (range %s)", range));
         }
         write(value, parsed);
         return null;
@@ -52,7 +55,7 @@ final class NeoForgeConfigBridge implements ConfigBridge {
     public String reset(String path) {
         ModConfigSpec.ConfigValue<?> value = find(path);
         if (value == null) {
-            return "Unknown setting: " + path + " (see /wcpu config)";
+            return Lang.f("Unknown setting: %s (see /wcpu config)", path);
         }
         write(value, spec(value).getDefault());
         return null;
@@ -83,10 +86,10 @@ final class NeoForgeConfigBridge implements ConfigBridge {
         return path.endsWith("Endpoint") || path.endsWith("ApiKey");
     }
 
-    private static Object parse(Object sample, String raw) {
+    private static Object parse(String path, Object sample, String raw) {
         try {
             if (sample instanceof Boolean) {
-                return parseBoolean(raw);
+                return parseBoolean(path, raw);
             } else if (sample instanceof Integer) {
                 return Integer.valueOf(raw);
             } else if (sample instanceof Long) {
@@ -98,15 +101,15 @@ final class NeoForgeConfigBridge implements ConfigBridge {
             }
             return raw;
         } catch (NumberFormatException failure) {
-            throw new IllegalArgumentException("expected a number, got '" + raw + "'", failure);
+            throw new IllegalArgumentException(Lang.f("%s: expected a number, got '%s'", path, raw), failure);
         }
     }
 
-    private static Boolean parseBoolean(String raw) {
+    private static Boolean parseBoolean(String path, String raw) {
         if (raw.equalsIgnoreCase("true") || raw.equalsIgnoreCase("false")) {
             return Boolean.valueOf(raw);
         }
-        throw new IllegalArgumentException("expected true or false, got '" + raw + "'");
+        throw new IllegalArgumentException(Lang.f("%s: expected true or false, got '%s'", path, raw));
     }
 
     private static List<String> parseList(String raw) {

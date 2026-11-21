@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.texboobcat.wcpu.ConfigBridge;
+import org.texboobcat.wcpu.Lang;
 
 import java.util.Comparator;
 import java.util.List;
@@ -48,6 +49,46 @@ final class WcpuConfigCommand {
                         StringArgumentType.getString(ctx, VALUE)))));
     }
 
+    // /wcpu language [en|ru]: the language of this command's output, stored as general.language.
+    static LiteralArgumentBuilder<CommandSourceStack> languageNode() {
+        return Commands.literal("language")
+            .executes(ctx -> showLanguage(ctx.getSource()))
+            .then(Commands.argument("code", StringArgumentType.word())
+                .suggests((ctx, builder) -> {
+                    builder.suggest(Lang.ENGLISH, Component.literal("English"));
+                    builder.suggest(Lang.RUSSIAN, Component.literal("Русский"));
+                    return builder.buildFuture();
+                })
+                .executes(ctx -> setLanguage(ctx.getSource(),
+                    StringArgumentType.getString(ctx, "code"))));
+    }
+
+    private static int showLanguage(CommandSourceStack source) {
+        source.sendSuccess(() -> text(Lang.t("Language") + ": ", ChatFormatting.DARK_AQUA)
+            .append(text(Lang.code(), ChatFormatting.GREEN)), false);
+        source.sendSuccess(() -> text(Lang.t("Change: /wcpu language <en|ru>"),
+            ChatFormatting.DARK_GRAY), false);
+        return 1;
+    }
+
+    private static int setLanguage(CommandSourceStack source, String code) {
+        if (!Lang.supported(code)) {
+            source.sendFailure(Component.literal(Lang.f("Unknown language: %s (use en or ru)", code)));
+            return 0;
+        }
+        ConfigBridge bridge = ConfigBridge.installed();
+        String error = bridge == null ? null : bridge.set("general.language", code.toLowerCase(java.util.Locale.ROOT));
+        if (error != null) {
+            source.sendFailure(Component.literal(error));
+            return 0;
+        }
+        if (bridge == null) {
+            Lang.set(code);
+        }
+        source.sendSuccess(() -> text(Lang.f("Language set to %s.", Lang.code()), ChatFormatting.GREEN), true);
+        return 1;
+    }
+
     // ---- reading ----------------------------------------------------------------------------
 
     private static Optional<ConfigBridge.Entry> find(String path) {
@@ -59,11 +100,11 @@ final class WcpuConfigCommand {
     private static int list(CommandSourceStack source) {
         ConfigBridge bridge = ConfigBridge.installed();
         if (bridge == null) {
-            source.sendFailure(Component.literal("Settings are not available on this loader."));
+            source.sendFailure(Component.literal(Lang.t("Settings are not available on this loader.")));
             return 0;
         }
         source.sendSuccess(() -> text("wcpu ", ChatFormatting.GOLD, ChatFormatting.BOLD)
-            .append(text("» settings (hover for details, click to change)", ChatFormatting.GRAY)), false);
+            .append(text(Lang.t("» settings (hover for details, click to change)"), ChatFormatting.GRAY)), false);
         List<ConfigBridge.Entry> entries = bridge.entries().stream()
             .sorted(Comparator.comparing(ConfigBridge.Entry::path)).toList();
         String section = "";
@@ -83,9 +124,9 @@ final class WcpuConfigCommand {
     private static MutableComponent row(ConfigBridge.Entry entry) {
         MutableComponent hover = text(entry.path() + "\n", ChatFormatting.GOLD)
             .append(text(entry.description() + "\n", ChatFormatting.GRAY))
-            .append(text("default: " + entry.defaultValue(), ChatFormatting.DARK_GRAY));
+            .append(text(Lang.t("default: ") + entry.defaultValue(), ChatFormatting.DARK_GRAY));
         if (!entry.range().isEmpty()) {
-            hover.append(text("  range: " + entry.range(), ChatFormatting.DARK_GRAY));
+            hover.append(text(Lang.t("  range: ") + entry.range(), ChatFormatting.DARK_GRAY));
         }
         String command = "/wcpu config " + entry.path() + " ";
         return text("  " + shortName(entry.path()), ChatFormatting.AQUA)
@@ -99,7 +140,7 @@ final class WcpuConfigCommand {
     private static int show(CommandSourceStack source, String path) {
         Optional<ConfigBridge.Entry> found = find(path);
         if (found.isEmpty()) {
-            source.sendFailure(Component.literal("Unknown setting: " + path + " (see /wcpu config)"));
+            source.sendFailure(Component.literal(Lang.f("Unknown setting: %s (see /wcpu config)", path)));
             return 0;
         }
         ConfigBridge.Entry entry = found.get();
@@ -107,16 +148,16 @@ final class WcpuConfigCommand {
         for (String line : entry.description().split("\n")) {
             source.sendSuccess(() -> text(line, ChatFormatting.GRAY), false);
         }
-        source.sendSuccess(() -> text("Current: ", ChatFormatting.DARK_AQUA)
+        source.sendSuccess(() -> text(Lang.t("Current: "), ChatFormatting.DARK_AQUA)
             .append(text(entry.value(), valueColor(entry)))
-            .append(text("   Default: " + entry.defaultValue(), ChatFormatting.DARK_GRAY))
-            .append(text(entry.range().isEmpty() ? "" : "   Range: " + entry.range(),
+            .append(text(Lang.t("   Default: ") + entry.defaultValue(), ChatFormatting.DARK_GRAY))
+            .append(text(entry.range().isEmpty() ? "" : Lang.t("   Range: ") + entry.range(),
                 ChatFormatting.DARK_GRAY)), false);
         if (entry.needsRestart()) {
-            source.sendSuccess(() -> text("Saved, but takes effect only after the server is restarted.",
+            source.sendSuccess(() -> text(Lang.t("Saved, but takes effect only after the server is restarted."),
                 ChatFormatting.YELLOW), false);
         }
-        source.sendSuccess(() -> text("Change: /wcpu config " + entry.path() + " <value>",
+        source.sendSuccess(() -> text(Lang.f("Change: /wcpu config %s <value>", entry.path()),
             ChatFormatting.DARK_GRAY), false);
         return 1;
     }
@@ -142,9 +183,9 @@ final class WcpuConfigCommand {
         source.sendSuccess(() -> text(path, ChatFormatting.AQUA)
             .append(text(" = ", ChatFormatting.DARK_GRAY))
             .append(text(now.map(ConfigBridge.Entry::value).orElse("?"), ChatFormatting.GREEN))
-            .append(text("  (saved)", ChatFormatting.DARK_GRAY)), true);
+            .append(text(Lang.t("  (saved)"), ChatFormatting.DARK_GRAY)), true);
         if (now.isPresent() && now.get().needsRestart()) {
-            source.sendSuccess(() -> text("Saved, but takes effect only after the server is restarted.",
+            source.sendSuccess(() -> text(Lang.t("Saved, but takes effect only after the server is restarted."),
                 ChatFormatting.YELLOW), false);
         }
         return 1;
@@ -175,8 +216,8 @@ final class WcpuConfigCommand {
                 builder.suggest("true", Component.literal(firstLine(entry.description())));
                 builder.suggest("false", Component.literal(firstLine(entry.description())));
             } else {
-                builder.suggest(entry.value(), Component.literal("current value"));
-                builder.suggest(entry.defaultValue(), Component.literal("default value"));
+                builder.suggest(entry.value(), Component.literal(Lang.t("current value")));
+                builder.suggest(entry.defaultValue(), Component.literal(Lang.t("default value")));
             }
         }
         return builder.buildFuture();
