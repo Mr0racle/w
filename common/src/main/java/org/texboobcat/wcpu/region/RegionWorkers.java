@@ -6,9 +6,7 @@ import org.texboobcat.wcpu.Config;
 import org.texboobcat.wcpu.CompatibilityReporter;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -229,8 +227,18 @@ public final class RegionWorkers {
 
     private static List<List<PlannedTask>> planGroups(LoadBalancePlanner planner,
                                                       List<PlannedTask> tasks) {
+        // Nothing to plan for one region or with balancing off: skip building the cost list.
+        if (!balancing || tasks.size() < 2) {
+            List<List<PlannedTask>> single = new ArrayList<>(tasks.size());
+            for (PlannedTask task : tasks) {
+                single.add(List.of(task));
+            }
+            return single;
+        }
         List<LoadBalancePlanner.Item> items = new ArrayList<>(tasks.size());
-        Map<Integer, PlannedTask> byRegion = new HashMap<>();
+        // Primitive keys: no boxed Integer per region per tick.
+        it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<PlannedTask> byRegion =
+            new it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap<>(tasks.size());
         for (PlannedTask task : tasks) {
             Region region = task.region();
             RegionLoad load = region.load();
@@ -238,14 +246,6 @@ public final class RegionWorkers {
             long cost = load.samples() > 0 ? load.cost() : region.costNanos();
             items.add(new LoadBalancePlanner.Item(region.id(), cost));
             byRegion.put(region.id(), task);
-        }
-
-        if (!balancing || tasks.size() < 2) {
-            List<List<PlannedTask>> single = new ArrayList<>(tasks.size());
-            for (PlannedTask task : tasks) {
-                single.add(List.of(task));
-            }
-            return single;
         }
         LoadBalancePlanner.Plan plan = planner.plan(items, Math.max(1, poolSize));
         lastPlan = plan;

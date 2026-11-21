@@ -30,6 +30,17 @@ public final class RegionTickState {
     // Reused each tick so that iterating a region allocates nothing.
     private final List<Entity> snapshot = new ArrayList<>();
 
+    // Guards entities against the one writer that can overlap a worker: the main thread adding or
+    // moving an entity while a worker copies the map into the snapshot. The lock is only held for
+    // a map operation or a copy, never while an entity ticks.
+    private final Object entityLock = new Object();
+    private boolean snapshotTaken;
+
+    // Set when a worker starts this region's entity phase, cleared when the main thread claims the
+    // region again. A second start inside one claim would tick every entity twice.
+    private final java.util.concurrent.atomic.AtomicBoolean entityPhaseStarted =
+        new java.util.concurrent.atomic.AtomicBoolean();
+
     // This region's block-entity tickers for the current tick.
     //
     // Unlike entities, membership is rebuilt each tick from the level's own list rather than
@@ -52,15 +63,21 @@ public final class RegionTickState {
     }
 
     public boolean addEntity(Entity entity) {
-        return this.entities.put(entity.getId(), entity) == null;
+        synchronized (this.entityLock) {
+            return this.entities.put(entity.getId(), entity) == null;
+        }
     }
 
     public boolean removeEntity(Entity entity) {
-        return this.entities.remove(entity.getId()) != null;
+        synchronized (this.entityLock) {
+            return this.entities.remove(entity.getId()) != null;
+        }
     }
 
     public boolean containsEntity(Entity entity) {
-        return this.entities.containsKey(entity.getId());
+        synchronized (this.entityLock) {
+            return this.entities.containsKey(entity.getId());
+        }
     }
 
     public Iterable<Int2ObjectMap.Entry<Entity>> entries() {
@@ -69,10 +86,12 @@ public final class RegionTickState {
 
     // Moves everything from other into this state. Used when regions merge.
     public void absorb(RegionTickState other) {
-        for (Int2ObjectMap.Entry<Entity> entry : other.entities.int2ObjectEntrySet()) {
-            this.entities.put(entry.getIntKey(), entry.getValue());
+        synchronized (this.entityLock) {
+            for (Int2ObjectMap.Entry<Entity> entry : other.entities.int2ObjectEntrySet()) {
+                this.entities.put(entry.getIntKey(), entry.getValue());
+            }
+            other.entities.clear();
         }
-        other.entities.clear();
     }
 
     // Copies the current members into the reusable snapshot buffer and returns it.
@@ -81,11 +100,22 @@ public final class RegionTickState {
     // region boundary partway through the entity phase is ticked exactly once rather than twice
     // or not at all.
     public List<Entity> snapshot() {
-        this.snapshot.clear();
-        if (!this.entities.isEmpty()) {
-            this.snapshot.addAll(this.entities.values());
+        synchronized (this.entityLock) {
+            this.snapshot.clear();
+            if (!this.entities.isEmpty()) {
+                this.snapshot.addAll(this.entities.values());
+            }
+            this.snapshotTaken = true;
         }
         return this.snapshot;
+    }
+
+    // The snapshot, taking it now if nobody has yet this claim. Async region tasks call this on
+    // the worker, so the copy no longer runs on the main thread. This is the same set the main
+    // thread would have copied: a claimed region is never changed by the main thread's lease
+    // rules, and anything that does reach it meanwhile goes through the lock above.
+    public List<Entity> snapshotIfAbsent() {
+        return this.snapshotTaken ? this.snapshot : snapshot();
     }
 
     public List<Entity> currentSnapshot() {
@@ -94,6 +124,18 @@ public final class RegionTickState {
 
     public void clearSnapshot() {
         this.snapshot.clear();
+        this.snapshotTaken = false;
+    }
+
+    // Main thread, right after it claims this region for a tick.
+    public void markClaimed() {
+        this.entityPhaseStarted.set(false);
+    }
+
+    // Worker, at the start of the entity phase. False means this claim already ran it, so the
+    // entities must not tick again.
+    public boolean beginEntityPhase() {
+        return this.entityPhaseStarted.compareAndSet(false, true);
     }
 
     // ---- block entity tickers ---------------------------------------------------------------

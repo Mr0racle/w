@@ -413,6 +413,7 @@ public final class LevelRegionIndex implements RegionizerListener {
             if (region.tickDivisor() > 1) {
                 throttled++;
             }
+            state.markClaimed();
             if (tickEntityPhase && state.entityCount() > 0) {
                 state.snapshot();
             }
@@ -557,9 +558,9 @@ public final class LevelRegionIndex implements RegionizerListener {
                 skipped++;
                 continue;
             }
-            if (tickEntityPhase && state.entityCount() > 0) {
-                state.snapshot();
-            }
+            // The worker takes the entity snapshot itself (RegionTickState.snapshotIfAbsent), so
+            // the main thread does not copy every region's entity list each tick.
+            state.markClaimed();
             claimed.add(new Claimed(runFor(region), state));
         }
         return new Claims(claimed, skipped, throttled);
@@ -670,18 +671,8 @@ public final class LevelRegionIndex implements RegionizerListener {
             }
 
             if (tickEntityPhase) {
-                long entityStart = System.nanoTime();
-                PhaseStats.measure(PhaseStats.Phase.ENTITIES, () -> {
-                    for (Entity entity : state.currentSnapshot()) {
-                        if (run.includes(entity.getId())) {
-                            tickEntity(entity, entityConsumer);
-                        }
-                    }
-                });
-                region.load().time(RegionLoad.Metric.ENTITY, entityStart);
-                region.load().setCounts(state.entityCount(), blockEntities.size());
-                nonBlockEntityNanos = System.nanoTime() - regionStart;
-                levelAccess.wcpu$tickRegionalBlockEntities(region, blockEntities);
+                nonBlockEntityNanos = tickEntityPhaseOnce(run, state, blockEntities,
+                    entityConsumer, levelAccess, regionStart);
             }
         } finally {
             region.recordTick(nonBlockEntityNanos == 0L
@@ -690,6 +681,36 @@ public final class LevelRegionIndex implements RegionizerListener {
             state.clearSnapshot();
             RegionThreadContext.exit();
         }
+    }
+
+    // Ticks a region's entities and block entities, at most once per claim. Returns the time spent
+    // before the block entities, or 0 when the phase was refused as a repeat.
+    private long tickEntityPhaseOnce(RegionRun run, RegionTickState state,
+                                     List<TickingBlockEntity> blockEntities,
+                                     Consumer<Entity> entityConsumer,
+                                     RegionalLevelAccess levelAccess, long regionStart) {
+        Region region = run.region();
+        if (!state.beginEntityPhase()) {
+            RegionTracker.violations().record(region.id(), this.levelKey, 0, 0,
+                org.texboobcat.wcpu.guard.Ownership.Mode.WRITE,
+                "region entity phase started twice in one claim (entities would tick twice)");
+            LOGGER.error("[{}] wcpu: region #{} was about to tick its entities twice in one"
+                + " claim; the second run was skipped", this.levelKey, region.id());
+            return 0L;
+        }
+        long entityStart = System.nanoTime();
+        PhaseStats.measure(PhaseStats.Phase.ENTITIES, () -> {
+            for (Entity entity : state.snapshotIfAbsent()) {
+                if (run.includes(entity.getId())) {
+                    tickEntity(entity, entityConsumer);
+                }
+            }
+        });
+        region.load().time(RegionLoad.Metric.ENTITY, entityStart);
+        region.load().setCounts(state.entityCount(), blockEntities.size());
+        long nonBlockEntityNanos = System.nanoTime() - regionStart;
+        levelAccess.wcpu$tickRegionalBlockEntities(region, blockEntities);
+        return nonBlockEntityNanos;
     }
 
     private void runUnownedScheduledDrains(List<ScheduledDrain> drains) {
