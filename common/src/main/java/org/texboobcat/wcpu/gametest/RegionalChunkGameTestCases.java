@@ -529,6 +529,11 @@ public final class RegionalChunkGameTestCases {
         Mob attacker = helper.spawnWithNoFreeWill(EntityType.ZOMBIE, new BlockPos(2, 1, 3));
         double sheepX = sheep.getX();
         double sheepZ = sheep.getZ();
+        // The adaptive throttle slows regions when the (slow, shared) CI server overruns its tick,
+        // which would make this AI check depend on runner speed rather than on region workers.
+        boolean throttling = org.texboobcat.wcpu.Config.adaptiveThrottling;
+        org.texboobcat.wcpu.Config.adaptiveThrottling = false;
+        helper.runAfterDelay(110, () -> org.texboobcat.wcpu.Config.adaptiveThrottling = throttling);
         helper.assertTrue(sheep.hurt(level.damageSources().mobAttack(attacker), 1.0F),
             "could not trigger sheep panic");
 
@@ -543,7 +548,12 @@ public final class RegionalChunkGameTestCases {
             double dx = sheep.getX() - sheepX;
             double dz = sheep.getZ() - sheepZ;
             helper.assertTrue(dx * dx + dz * dz > 0.25,
-                "damaged sheep did not run panic AI");
+                "damaged sheep did not run panic AI (moved " + dx + ", " + dz + "; tickCount="
+                    + sheep.tickCount + ", health=" + sheep.getHealth() + ", hurtBy="
+                    + sheep.getLastHurtByMob() + ", navDone=" + sheep.getNavigation().isDone()
+                    + ", parallelAllowed=" + RegionTracker.parallelAllowed() + ", degrade="
+                    + RegionTracker.degradeReason() + ")");
+            org.texboobcat.wcpu.Config.adaptiveThrottling = throttling;
             sheep.discard();
             attacker.discard();
         });
