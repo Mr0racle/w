@@ -1,11 +1,11 @@
 ---
 name: wcpu-mod-compatibility
-description: Diagnose and fix Minecraft mod incompatibilities exposed by Wcpu region-thread execution. Use when a copied Wcpu report, serial fallback, ownership failure, or affected entity or block-entity ID points to mod code; preserve server-only operation and prefer root-cause concurrency fixes over broad main-thread or serial fallbacks.
+description: Diagnose and fix Minecraft mod incompatibilities exposed by wcpu region-thread execution. Use when a copied wcpu report, serial fallback, ownership failure, or affected entity or block-entity ID points to mod code; preserve server-only operation and prefer root-cause concurrency fixes over broad main-thread or serial fallbacks.
 ---
 
-# Make a mod compatible with Wcpu
+# Make a mod compatible with wcpu
 
-Produce a source-level fix that keeps independent regions parallel. Treat Wcpu's fallback as
+Produce a source-level fix that keeps independent regions parallel. Treat wcpu's fallback as
 evidence and a safety net, not the compatibility solution.
 
 ## Start from the report
@@ -22,18 +22,33 @@ version, and a reliable reproduction. Use these report fields to narrow the inve
 - `Component` distinguishes region ticking from natural spawning.
 - `Reason code` commonly identifies `scheduled_tick_cross_region`, `worker_exception`, or
   `unknown_safety_check`; the human-readable reason and exception still decide the fix.
-- Minecraft, loader, Wcpu, and mod versions define the compatibility claim. Do not generalize
+- Minecraft, loader, wcpu, and mod versions define the compatibility claim. Do not generalize
   a result to untested versions.
 
 If the report has no useful frame or type ID, reproduce with diagnostics enabled and capture the
 first failure. Do not guess from the installed-mod list.
 
-Inspect Wcpu's source when the report, ownership rule, fallback behavior, or API contract is
-unclear. Reuse an existing local checkout first. Otherwise, when network access is authorized, clone
-https://github.com/ColinVaughn/Tessellate and check out the tag or commit matching the reported
-version. Do not reason from the latest branch when the server runs an older release. Trace both the
-code that detects the failure and the scheduling or ownership path around it before deciding whether
-the bug belongs to Wcpu, the target mod, or their interaction.
+Inspect wcpu's source when the report, ownership rule, fallback behavior, or API contract is
+unclear. Reuse an existing local checkout first. Otherwise clone https://github.com/Mr0racle/w when
+you have access to it (it is private for now, so ask the user for a copy if it is not reachable)
+and check out the commit matching the reported wcpu version. Do not reason from the latest branch
+when the server runs an older build. wcpu is a fork of Tessellate, so the ownership model and API
+below match upstream; the load balancer, `/wcpu` commands and built-in rules are specific to wcpu.
+Trace both the code that detects the failure and the scheduling or ownership path around it before
+deciding whether the bug belongs to wcpu, the target mod, or their interaction.
+
+wcpu never uploads reports or downloads rules. The report is text the user copies from the chat
+message or log, so it is only as complete as what they paste.
+
+Before touching the mod, check whether wcpu already handles the case without a code change:
+
+- `compatibility.mainThreadEntities` in `config/wcpu-common.toml` (or `/wcpu config
+  compatibility.mainThreadEntities ...`) puts entity types on the main thread. It accepts ids,
+  `mod:*` for a whole mod and `#namespace:tag` for an entity type tag.
+- `BuiltInCompatibility` already covers Create Big Cannons, Ritchie's Projectile Library and
+  Simulated; add the mod there if it needs the same treatment.
+- An unloaded chunk requested by a worker is not a mod bug. It only pauses parallel ticking for a
+  few seconds (`ChunkUnavailableException`); it does not appear as a serial fallback.
 
 ## Attribute failures across mod boundaries
 
@@ -75,17 +90,17 @@ first matching fix:
    atomic operation, a short lock, immutable snapshots, thread-confined context, or a
    per-level/per-region data structure.
 3. **World state at a known position:** dispatch the operation to its owner with
-   `WcpuApi.executeOnRegion(level, pos, work)`.
+   `wcpuApi.executeOnRegion(level, pos, work)`.
 4. **A genuinely main-thread-only API:** queue only that operation with
-   `WcpuApi.executeOnMainThread(work)`.
+   `wcpuApi.executeOnMainThread(work)`.
 5. **Main-thread work that touches a known position:** use
-   `WcpuApi.executeOnMainThread(level, pos, work)` so Wcpu leases the owner first.
+   `wcpuApi.executeOnMainThread(level, pos, work)` so wcpu leases the owner first.
 6. **An entire tick that cannot be isolated safely:** register only that entity or block-entity type
    during mod initialization with `registerMainThreadEntity(type)` or
    `registerMainThreadBlockEntity(type)`.
 
-Import these hooks from `org.texboobcat.wcpu.api.WcpuApi`. Confirm the signatures in the
-Wcpu version being targeted before editing the mod.
+Import these hooks from `org.texboobcat.wcpu.api.wcpuApi`. Confirm the signatures in the
+wcpu version being targeted before editing the mod.
 
 ## Bridge an optional or unmaintained dependency safely
 
@@ -113,7 +128,7 @@ for the patch, or claim the addon is compatible merely because the server starts
 
 Trace the whole vanilla and loader pipeline, including other mixins around the same invocation.
 For parallel natural spawning, the relevant lifecycle is candidate creation and positioning,
-validation, Wcpu cap reservation, `finalizeSpawn`, entity insertion, and
+validation, wcpu cap reservation, `finalizeSpawn`, entity insertion, and
 `SpawnState.afterSpawn`. The same mob instance at the same position must flow from reservation
 through `afterSpawn`; adding an entity before a reservation or replacing or moving it afterward is
 a transaction violation even when the current worker owns the position.
@@ -121,7 +136,7 @@ a transaction violation even when the current worker owns the position.
 For a mod that replaces a natural-spawn candidate:
 
 - Construct and copy the replacement after the original candidate is positioned but before
-  `isValidPositionForMob` and Wcpu's reservation wrapper. On Fabric, a stable pattern is an
+  `isValidPositionForMob` and wcpu's reservation wrapper. On Fabric, a stable pattern is an
   injection after the version's `Mob.moveTo` or `Mob.snapTo` call that updates the method's local
   `Mob` reference, such as a MixinExtras `LocalRef<Mob>`.
 - Let vanilla continue with the replacement so validation, reservation, finalization, insertion,
@@ -136,7 +151,7 @@ For a mod that replaces a natural-spawn candidate:
 
 `executeOnRegion` does not repair this failure: an owner-local call runs inline at the same invalid
 transaction phase. `executeOnMainThread` only moves the invalid direct insertion and needlessly
-serializes the mod's decision. Wcpu may still defer the final level-global entity insertion to
+serializes the mod's decision. wcpu may still defer the final level-global entity insertion to
 the main thread to protect entity indexes and lifecycle callbacks; actual compatibility means the
 candidate selection, preparation, validation, and regional work stay parallel while the normal
 pipeline owns that narrow global commit.
@@ -194,9 +209,9 @@ thread.
 - Do not hide a fixable bug with `compatibility.forceSerialMods`, a global spawning override, or a
   whole-session serial-region rule. Those are temporary maintainer safety controls.
 
-Keep Wcpu optional unless the mod intentionally requires it. Isolate Wcpu imports in a
+Keep wcpu optional unless the mod intentionally requires it. Isolate wcpu imports in a
 loader-gated compatibility class, use the project's compile-only equivalent where available, and
-verify that the mod still launches without Wcpu. Compatibility code belongs on the logical
+verify that the mod still launches without wcpu. Compatibility code belongs on the logical
 server; do not introduce a required client mod or client-only class reference.
 
 ## Implement and prove the fix
@@ -218,12 +233,12 @@ Then validate in proportion to the affected subsystem:
   before competing wrappers loaded their arguments.
 - First reproduce the original failure with the unpatched artifact under the same fixture. Without a
   pre-fix failure, a clean post-fix run may only prove that the test never reached the unsafe path.
-- Reproduce with Wcpu's parallel region ticking and at least two affected instances in
+- Reproduce with wcpu's parallel region ticking and at least two affected instances in
   independent regions. Confirm the original behavior still works and no serial fallback or ownership
   violation appears.
 - Drive enough real work to cross the failing call repeatedly: populate every relevant process or
   input lane, supply required energy or resources, and assert actual outputs or state changes. Also
-  verify that Wcpu still reports independent region workers rather than a degraded serial mode.
+  verify that wcpu still reports independent region workers rather than a degraded serial mode.
 - Scan the post-fix log for the original exception, suspected frame, ownership violation, worker
   failure, compatibility candidate, and serial-fallback markers. Record zero matches alongside the
   positive behavior assertion.
@@ -232,7 +247,7 @@ Then validate in proportion to the affected subsystem:
 - Exercise natural spawning when the report component is `natural-spawning`.
 - Test every loader the mod claims to support.
 - Launch a dedicated server without the client mod. If the integration is optional, also launch
-  without Wcpu.
+  without wcpu.
 
 Do not claim official compatibility from compilation alone. If a full reproduction cannot run,
 state exactly what was verified and leave the result as a proposed fix.
@@ -243,12 +258,11 @@ Report:
 
 - the root cause and violated ownership invariant;
 - the reported frame and affected type ID;
-- the smallest synchronization or Wcpu boundary chosen, and why broader fallbacks were not
+- the smallest synchronization or wcpu boundary chosen, and why broader fallbacks were not
   needed;
 - the tests and runtime matrix completed;
 - any remaining temporary fallback and the condition for removing it.
 
-If the evidence points to Wcpu rather than the target mod, reduce it to a minimal reproduction
-and report it at https://github.com/ColinVaughn/Tessellate or discuss it at
-https://discord.gg/dPY6zmHtr5. Do not open an issue, push a branch, or publish a compatibility claim
+If the evidence points to wcpu rather than the target mod, reduce it to a minimal reproduction
+and give it to the user. Do not open an issue, push a branch, or publish a compatibility claim
 unless the user asks.

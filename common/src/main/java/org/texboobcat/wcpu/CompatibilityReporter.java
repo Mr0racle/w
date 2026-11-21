@@ -160,7 +160,7 @@ public final class CompatibilityReporter {
         }
         String mod = report.suspect().modId() == null ? "unknown"
             : report.suspect().modId() + " " + report.suspect().modVersion();
-        Component message = Component.literal("Wcpu fell back to serial execution for "
+        Component message = Component.literal("wcpu fell back to serial execution for "
                 + report.component() + ". Suspected mod: " + mod + ". ")
             .withStyle(ChatFormatting.RED)
             .append(Component.literal("[Copy compatibility report]")
@@ -173,14 +173,14 @@ public final class CompatibilityReporter {
 
     static String issueReport(Report report, String reason) {
         return """
-            ### Wcpu compatibility report
+            ### wcpu compatibility report
 
-            Wcpu fell back to serial execution while running `%s`.
+            wcpu fell back to serial execution while running `%s`.
 
             - Suspected mod: `%s` `%s`
             - Minecraft: `%s`
             - Loader: `%s`
-            - Wcpu: `%s`
+            - wcpu: `%s`
             - Reason code: `%s`
             - Failure: `%s`
             - Suspected frame: `%s`
@@ -195,7 +195,6 @@ public final class CompatibilityReporter {
             Prefer moving only the unsafe operation: use `WcpuApi.executeOnRegion(level, pos, work)` for world access owned by another region, or `WcpuApi.executeOnMainThread(work)` for main-thread-only state. If the whole type is unsafe, register only the affected type during mod initialization with `WcpuApi.registerMainThreadEntity(type)` or `WcpuApi.registerMainThreadBlockEntity(type)`.
 
             - GitHub compatibility guide: https://github.com/Mr0racle/w#compatibility
-            - Wcpu Discord: https://discord.gg/dPY6zmHtr5
 
             _The suspected mod was detected automatically from the failing stack frame._
             """.formatted(report.component(), unknown(report.suspect().modId()),

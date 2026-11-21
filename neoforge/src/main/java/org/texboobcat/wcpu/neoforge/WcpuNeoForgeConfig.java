@@ -216,7 +216,7 @@ public final class WcpuNeoForgeConfig {
             MAIN_THREAD_ENTITIES = BUILDER
         .comment(
             "Entity types that must tick on the main thread for compatibility with mods",
-            "that have not adopted Wcpu's API. Entries are an entity id (creaturefeature:toadstool),",
+            "that have not adopted wcpu's API. Entries are an entity id (creaturefeature:toadstool),",
             "a whole mod (createbigcannons:*) or an entity type tag (#ritchiesprojectilelib:precise_motion).",
             "Projectiles of Ritchie's Projectile Library / Create Big Cannons need this: they fly into",
             "chunks that are still loading, which a region worker cannot wait for.")
@@ -240,26 +240,20 @@ public final class WcpuNeoForgeConfig {
                 && string.matches("[a-z][a-z0-9_]{1,63}"));
 
     private static final ModConfigSpec.ConfigValue<String> REPORT_ENDPOINT = BUILDER
-        .comment(
-            "HTTPS endpoint for structured compatibility reports. Blank disables uploads.",
-            "Use the rate-limited Wcpu Edge Function; direct table writes are disabled.")
+        .comment("Unused: this build never contacts a server and uploads nothing.")
         .define("compatibility.reportEndpoint", Config.COMPATIBILITY_REPORT_FUNCTION_ENDPOINT);
 
     private static final ModConfigSpec.ConfigValue<String> REPORT_API_KEY = BUILDER
-        .comment("Public/anon API key for the compatibility report endpoint.",
-            "Never put a Supabase service-role key here.")
+        .comment("Unused: this build never contacts a server.")
         .define("compatibility.reportApiKey", Config.DEFAULT_COMPATIBILITY_RULES_API_KEY);
 
     private static final ModConfigSpec.ConfigValue<String> RULES_ENDPOINT = BUILDER
-        .comment(
-            "HTTPS endpoint for curated entity compatibility rules.",
-            "Blank disables remote rules without enabling or disabling failure reporting.")
+        .comment("Unused: compatibility rules are built into the mod, nothing is downloaded.")
         .define("compatibility.rulesEndpoint",
             Config.DEFAULT_COMPATIBILITY_RULES_ENDPOINT);
 
     private static final ModConfigSpec.ConfigValue<String> RULES_API_KEY = BUILDER
-        .comment("Public/anon API key for the read-only compatibility rules endpoint.",
-            "Never put a Supabase service-role key here.")
+        .comment("Unused: this build never contacts a server.")
         .define("compatibility.rulesApiKey", Config.DEFAULT_COMPATIBILITY_RULES_API_KEY);
 
     private static final ModConfigSpec.BooleanValue DIAGNOSE_ENTITY_SECTION_RACES = BUILDER

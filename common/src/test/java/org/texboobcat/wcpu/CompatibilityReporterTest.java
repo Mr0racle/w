@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompatibilityReporterTest {
@@ -71,7 +72,7 @@ class CompatibilityReporterTest {
         assertTrue(issue.contains("Affected block entity type: `example:machine`"));
         assertTrue(issue.contains("WcpuApi.executeOnRegion(level, pos, work)"));
         assertTrue(issue.contains("https://github.com/Mr0racle/w#compatibility"));
-        assertTrue(issue.contains("https://discord.gg/dPY6zmHtr5"));
+        assertFalse(issue.contains("discord"));
         assertTrue(issue.contains("Event ID: `event`"));
         assertTrue(issue.contains("Reason: region worker failed"));
     }

@@ -1,90 +1,55 @@
 # wcpu
 
-> wcpu is a fork of [Tessellate](https://github.com/ColinVaughn/Tessellate) by ColinVaughn (MIT license, see `LICENSE`). It adds per-region load metrics, load-based task planning, a work-stealing worker pool, new `/wcpu` commands, built-in compatibility rules (Create Big Cannons, Ritchie's Projectile Library) and removes all network contact.
+wcpu is a performance mod for Minecraft 1.21.1 (NeoForge) that lets a server use more than one CPU
+core for the game world. It splits the loaded world into independent regions and ticks them on
+different cores. If one region gets too expensive it is slowed down on its own instead of dragging
+the whole server below 20 TPS.
 
-Wcpu is a Fabric and NeoForge performance mod for Minecraft 1.21.1. It groups distant loaded areas into
-independent regions and lets those regions run on different CPU cores. If one region gets too
-expensive, Wcpu can slow it down without dragging the rest of the server with it.
+> **Origin.** wcpu is a fork of [Tessellate](https://github.com/ColinVaughn/Tessellate) by
+> ColinVaughn (MIT license, see `LICENSE`). The region/ownership machinery is his work. This fork
+> adds load-based scheduling, `/wcpu` commands, built-in compatibility rules and removes all network
+> contact. It is developed for a Create / Sable / Create Big Cannons server.
 
-Support and discussion: [join the Wcpu Discord](https://discord.gg/dPY6zmHtr5).
+**Status:** private test build. It is tested on NeoForge 21.1 only. The Fabric module comes from
+upstream, still compiles, and is not tested in this fork.
 
-## Downloads
+## What wcpu does
 
-Download Wcpu from [CurseForge](https://www.curseforge.com/minecraft/mc-mods/wcpu).
-
-| Situation | What Wcpu does |
+| Situation | What wcpu does |
 | --- | --- |
-| Several distant bases are busy | Runs their regions concurrently |
+| Several distant bases are busy | Ticks their regions concurrently on worker threads |
 | One region exceeds the server budget | Reduces only that region's simulation rate |
-| Two regions become close enough to interact | Merges them before they tick |
-| A worker reaches unsafe shared state | Falls back to serial ticking for the session |
+| Two regions get close enough to interact | Merges them before they tick |
+| One core is overloaded, others idle | Groups regions by measured cost and lets idle workers steal tasks |
+| A worker needs a chunk that is not loaded yet | Pauses parallel ticking for about 5 seconds, then resumes by itself |
+| A worker reaches state that is really unsafe | Falls back to serial ticking until the server restarts |
 
-This works best when players or forced-loaded areas are spread out. One dense base, mob farm, or
-machine cluster is still one region, so Wcpu cannot split that work across several cores. It also
-doesn't replace single-thread optimizers such as [Lithium](https://modrinth.com/mod/lithium); the two
-solve different problems.
+It helps most when players or chunk loaders are spread out. One dense base or machine cluster is
+still one region, so wcpu cannot spread that work over several cores. It does not replace
+single-thread optimizers such as [Lithium](https://modrinth.com/mod/lithium).
 
-## Current benchmark
+### Added in this fork
 
-For the current benchmark, we ran an ABBA sequence and restarted the server before every arm. The
-test used four forced-loaded regions 2,048 blocks apart, each with exactly 1,200 persistent zombies
-(4,800 total). Both modes used adaptive throttling and the same nine-mod setup. The only setting we
-changed was `parallelTicking`.
-
-```mermaid
-xychart-beta
-    title "Median global tick time"
-    x-axis ["Serial", "Parallel"]
-    y-axis "MSPT - lower is better" 0 --> 45
-    bar [40.55, 15.75]
-```
-
-**Parallel ticking cut median MSPT by 61.2% and p95 MSPT by 62.5%.** All four regions held 20 TPS in
-both parallel runs. In the serial runs, the adaptive budget had to slow some regions because their
-work could only run one after another.
-
-| Mode, median of two arms | Median MSPT | Median p95 | Regions at 20 TPS | Slowest region |
-| --- | ---: | ---: | ---: | ---: |
-| Serial regional ticking | 40.55 ms | 50.80 ms | 0/4 and 1/4 | 10.0-10.6 TPS |
-| **Parallel regional ticking** | **15.75 ms** | **19.05 ms** | **4/4 in both arms** | **20.0 TPS** |
-
-<details>
-<summary>Raw arms and benchmark controls</summary>
-
-| Arm | Median MSPT | Median p95 | Regions at 20 TPS | Slowest region |
-| --- | ---: | ---: | ---: | ---: |
-| Serial A | 40.1 ms | 50.8 ms | 0/4 | 10.0 TPS |
-| Parallel A | 15.1 ms | 18.8 ms | 4/4 | 20.0 TPS |
-| Parallel B | 16.4 ms | 19.3 ms | 4/4 | 20.0 TPS |
-| Serial B | 41.0 ms | 50.8 ms | 1/4 | 10.6 TPS |
-
-- Hardware: Intel Core Ultra 7 255H, 16 cores, Java 21.
-- Runtime: Minecraft 1.21.1, NeoForge 21.1.248, Lithium 0.15.4, C2ME
-  0.4.0-alpha.0.120, Mekanism and Mekanism Generators 10.7.19.85, Naturalist 2.0.3,
-  Citadel 2.7.1, Friends & Foes 4.0.27, Resourceful Lib 3.0.12, and ScalableLux
-  0.3.0-alpha.0.8.
-- Each arm discarded two 8-second warmup windows, then used the median of five 8-second samples.
-- `asyncRegionLoops=false` in both arms so `tick query` included the worker critical path. Shipping
-  async mode does not join workers every tick, so its main-thread MSPT is not directly comparable.
-- `ItemEntity.Age`, a vanilla field outside Wcpu, measured each region's effective TPS.
-- Every arm verified exact entity count, separate regions, correct execution mode, drained boundary
-  queues, and zero boundary failures. Parallel arms also required worker overlap of at least two.
-
-Reproduce the same serial/parallel sequence with:
-
-```bash
-bash tools/ab_parallel.sh 4 1200
-```
-
-</details>
-
-This benchmark is deliberately built around several separate regions. It is not a promise of the
-same speedup on every server. One hot region still runs on one core, and different mixes of mobs,
-machines, and mods will behave differently.
+- **Load metrics and balancing.** Each region's cost is measured per tick. A planner groups regions
+  into tasks (heavy regions alone, light ones together) and a persistent work-stealing pool runs
+  them. See `/wcpu balance` and `/wcpu workers`.
+- **Soft chunk misses.** Requesting an unloaded chunk (Sable assembling a structure, a projectile
+  flying into new terrain) only pauses parallel ticking briefly. Real safety violations still
+  switch to serial for the session.
+- **Sable support.** Workers can see Sable's far-away "plot" chunks, and structure assembly no
+  longer breaks parallel ticking.
+- **Built-in compatibility rules** (`BuiltInCompatibility`), enabled automatically when the mod is
+  installed: Ritchie's Projectile Library and Create Big Cannons projectiles run on the main thread,
+  Simulated block entities run on the main thread. Entity lists accept ids, `mod:*` and `#tag`.
+- **`/wcpu` commands** with a readable report (colours, bars, hover and click). Every setting can be
+  read and changed in chat with `/wcpu config`.
+- **No network.** No compatibility reports are uploaded and no rules are downloaded. Nothing leaves
+  the host.
 
 ---
 
 ## How it works
+
 
 ```mermaid
 flowchart LR
@@ -103,7 +68,7 @@ mod state is queued and applied on the main thread once the region is safe.
 
 ### Regions
 
-Wcpu divides the loaded world into **sections** of 4x4 chunks. Nearby entity-ticking sections are
+wcpu divides the loaded world into **sections** of 4x4 chunks. Nearby entity-ticking sections are
 joined into a **region**, and that whole region ticks as one unit.
 
 With the default settings, regions merge when they come within 2 sections of each other. Two
@@ -114,7 +79,7 @@ The map updates as chunks load and unload. Run `/wcpu regions` to see it.
 
 ### Regional TPS: slicing, not skipping
 
-Wcpu measures the cost of each region every tick. If the server is about to miss its tick-time
+wcpu measures the cost of each region every tick. If the server is about to miss its tick-time
 target, the most expensive region gets a **tick divisor**. A divisor of 4 runs that region at 5 TPS
 while unaffected regions can stay at 20.
 
@@ -127,7 +92,7 @@ awful in play:
 | MSPT, mean | 20.5 ms | 23.7 ms |
 | MSPT, **95th percentile** | **210.9 ms** | **32.9 ms** |
 
-That gated version caused a 200 ms hitch every fourth tick, which made everyone stutter. Wcpu
+That gated version caused a 200 ms hitch every fourth tick, which made everyone stutter. wcpu
 instead runs a quarter of the region's entities on every tick. Each entity still averages 5 TPS,
 but the work is spread out.
 
@@ -184,26 +149,10 @@ With `asyncRegionLoops=true`, a busy region keeps its ownership claim and only m
 slot. Other regions and the main server tick continue instead of waiting at a global barrier.
 Targeted leases protect packets, commands, chunk topology, entity loading and unloading, and saves.
 
-Wcpu runs this ownership path without C2ME and has no build, metadata, or class dependency on it.
+wcpu runs this ownership path without C2ME and has no build, metadata, or class dependency on it.
 Vanilla prepares a safe unload snapshot on the main thread and writes it asynchronously. If C2ME is
 installed, it can also run `ChunkSerializer.write` for that snapshot on its workers. Loaded
 autosaves are still serialized during an idle main-thread slice; they do not wait on a busy region.
-
-### Validation coverage
-
-| Check | Result |
-| --- | --- |
-| JVM regression suite | 81 tests passed |
-| Wcpu-only NeoForge GameTests | All 5 required tests passed without external mods |
-| Scheduled ticks | 30 minutes, 422 rebuild cycles, worker peak 5, no failure or queued work left |
-| Block events | 30 minutes, 1,001,984 callbacks, worker peak 4, packets stayed on main |
-| Natural spawning | Three parallel runs, worker overlap confirmed, global and local caps held |
-| Deferred writes | 6,947 level writes and 2,592 entity callbacks replayed exactly |
-| Full-mod save/unload | 1,200 entities survived a 49-chunk unload/reload exactly |
-| Main-thread boundaries | 8,519 deferred operations balanced with zero pending work |
-
-These checks cover the workloads listed here, not every possible mod interaction. The serial
-fallback is still necessary because no test suite can prove that arbitrary mod code is thread-safe.
 
 ---
 
@@ -211,7 +160,7 @@ fallback is still necessary because no test suite can prove that arbitrary mod c
 
 Throttling has an intentional cost: when a region exceeds its share, **everything inside it runs
 slower**. Mobs move more slowly, farms produce less, and hoppers move fewer items. That is useful for
-containing a lag machine, but Wcpu cannot tell a lag machine from a legitimately busy base. It
+containing a lag machine, but wcpu cannot tell a lag machine from a legitimately busy base. It
 will slow either one.
 
 If you would rather let the whole server drop below 20 TPS than slow a player's build, set
@@ -220,57 +169,89 @@ diagnostics.
 
 ---
 
+---
+
 ## Configuration
 
-`config/wcpu-common.toml`.
+File: `config/wcpu-common.toml`. Every option can also be changed in game with
+`/wcpu config <setting> <value>`, which saves the file and applies it immediately, except the
+options marked "restart" below: those are saved but only apply after the server restarts, because
+they are read while a world is being built. A setting file from the old Tessellate
+(`tessellate-common.toml`) is not read.
 
 | option | default | what it does |
 | --- | --- | --- |
-| `regions.enabled` | `true` | region tracking; off makes the mod inert |
-| `regions.adaptiveThrottling` | `true` | the regional TPS system |
-| `regions.budgetMillis` | `25.0` | minimum budget retained for region work |
-| `regions.targetTickMillis` | `45.0` | tick time to steer toward; raise to intervene later |
-| `regions.maxTickDivisor` | `16` | slowest a region may be driven (1.25 TPS) |
-| `regions.minThrottleMillis` | `2.0` | regions cheaper than this are never slowed |
-| `regions.sectionShift` | `2` | region grid granularity, 4x4 chunks |
+| `regions.enabled` | `true` | region tracking; off makes the mod inert. **restart** |
+| `regions.sectionShift` | `2` | region grid granularity, 4x4 chunks. **restart** |
+| `regions.mergeRadius` | `2` | regions closer than this many sections are merged |
+| `regions.verifyIntervalTicks` | `200` | how often the region map is rescanned for drift |
 | `regions.parallelTicking` | `true` | tick regions on worker threads |
-| `regions.directWorkerChunkReads` | `true` | resolve loaded worker chunk reads before synchronous-load instrumentation |
-| `regions.parallelNaturalSpawning` | `true` | run owner-region spawn searches concurrently with level-wide cap reservations |
-| `regions.shardEntityStorage` | `true` | storage isolation required by `parallelTicking` |
+| `regions.workerThreads` | `0` | worker threads; `0` is automatic (CPU cores minus 2) |
 | `regions.asyncRegionLoops` | `true` | independent per-region loops without a per-tick barrier |
-| `regions.scopedScheduledTicks` | `true` | region-own block/fluid schedulers; false uses one serial fallback child |
-| `regions.scopedBlockEvents` | `true` | region-own block-event callbacks; false uses the serial fallback queue |
-| `compatibility.mainThreadEntities` | `["creaturefeature:toadstool", "#ritchiesprojectilelib:precise_motion"]` | entity types forced onto the main thread until their mods adopt the compatibility API. Accepts ids, `mod:*` (a whole mod) and `#namespace:tag` (entity type tags) |
-| `compatibility.forceSerialMods` | `[]` | loaded mod IDs that force serial region ticking for the session |
-| `compatibility.rulesEndpoint` | (empty, unused) | network is disabled in this build; rules are built in |
-| `compatibility.rulesApiKey` | public key | read-only rules key; never use a service-role key |
-| `compatibility.reportEndpoint` | (empty, unused) | network is disabled in this build; nothing is uploaded |
-| `compatibility.reportApiKey` | public key | report-service key; blank opts out; never use a service-role key |
+| `regions.parallelNaturalSpawning` | `true` | owner-region spawn searches run concurrently |
+| `regions.directWorkerChunkReads` | `true` | workers read loaded chunks directly |
+| `regions.threadLocalRandom` | `true` | per-thread random state; required by `parallelTicking` |
+| `regions.shardEntityStorage` | `true` | entity storage isolation required by `parallelTicking`. **restart** |
+| `regions.scopedEntityTicking` | `true` | tick entities per region |
+| `regions.scopedBlockEntityTicking` | `true` | tick block entities per region |
+| `regions.scopedScheduledTicks` | `true` | region-owned block/fluid scheduled ticks. **restart** |
+| `regions.scopedBlockEvents` | `true` | region-owned block-event queues |
+| `regions.adaptiveThrottling` | `true` | the regional TPS system (see the trade-off below) |
+| `regions.budgetMillis` | `25.0` | minimum budget kept for region work |
+| `regions.targetTickMillis` | `45.0` | tick time to steer toward; raise to intervene later |
+| `regions.minThrottleMillis` | `2.0` | regions cheaper than this are never slowed |
+| `regions.maxTickDivisor` | `16` | slowest a region may be driven (1.25 TPS) |
+| `regions.assertShardOwnership` | `false` | debug check of entity-storage ownership |
+| `compatibility.serializeEntityTicks` | `false` | entity tick bodies never overlap across workers |
+| `compatibility.mainThreadEntities` | `["creaturefeature:toadstool", "#ritchiesprojectilelib:precise_motion"]` | entity types ticked on the main thread. Accepts ids, `mod:*` and `#namespace:tag`. Built-in rules add Create Big Cannons projectiles automatically |
+| `compatibility.forceSerialMods` | `[]` | loaded mod IDs that force serial region ticking |
+| `guard.diagnoseEntitySectionRaces` | `false` | log suspected entity-section races |
+| `guard.strict` | `false` | stricter ownership guard |
+| `guard.logRegionChanges` | `false` | log region merges and splits |
 
-To return to serial regional ticking while diagnosing a mod conflict:
+The four `compatibility.*Endpoint` / `*ApiKey` options remain in the file for old configs. They do
+nothing: this build never contacts a server and they are hidden from `/wcpu config`.
+
+JVM flags (add to the server start script; they override the file):
+
+| flag | what it does |
+| --- | --- |
+| `-Dwcpu.workerThreads=N` | worker thread count |
+| `-Dwcpu.balance=false` | turn load balancing off |
+| `-Dwcpu.maxConcurrentRegionTasks=N` | cap on regions running at once |
+| `-Dwcpu.chunkMissPauseMs=N` | how long parallel ticking pauses after a chunk miss (default 5000) |
+
+To go back to serial regional ticking while diagnosing a mod conflict, set both of these to `false`:
 
 ```toml
-parallelTicking = false
-asyncRegionLoops = false
+regions.parallelTicking = false
+regions.asyncRegionLoops = false
 ```
-
-Runtime fallbacks always log a suspected mod and source frame locally. This build never contacts
-any server: no reports are uploaded and no rules are downloaded. Compatibility rules ship inside the
-mod (`BuiltInCompatibility`) and switch on by themselves when the affected mod is installed.
 
 ### Commands
 
-- `/wcpu regions`: region map, per-region cost and tick rate, execution mode
-- `/wcpu phases`: worker/main calls, time, overlap, lock wait, failures and deferred queue depth
-- `/wcpu violations`: thread-ownership violations recorded (should be empty)
-- `/wcpu visualize`: stable region map plus GPU-rendered perimeter curtains; `T#` is the
-  pooled worker that most recently ran the region
+All commands need operator permission level 2.
 
-When Lithium is installed, Wcpu disables Lithium's `alloc.chunk_random`,
-`entity.inactive_navigations`, and experimental `entity.block_caching` mixins through Lithium's
-supported mod override metadata. They keep mutable state shared by independent region threads;
-Wcpu supplies worker-local random state and an atomic path-type cache, while entity block
-caching falls back to Lithium's regular collision path.
+| command | what it does |
+| --- | --- |
+| `/wcpu status` | one-screen summary with a verdict: mode, workers, regions, load, problems |
+| `/wcpu regions [all]` | region map with per-region cost, tick rate and worker; click a region to get a teleport command. `raw` and `verbose` give the old plain-text output |
+| `/wcpu balance [on\|off]` | show the load-balancing plan, or switch balancing on or off |
+| `/wcpu workers [N\|all\|auto]` | show worker threads, or set their number (`all` = every CPU core, `auto` = default) |
+| `/wcpu phases [raw]` | where time goes: worker and main-thread work per boundary, queue depth, failures |
+| `/wcpu violations [clear]` | thread-ownership violations recorded since start (should be empty) |
+| `/wcpu visualize [on\|off]` | show region and chunk borders in the world (needs the mod on the client for the full overlay; otherwise particles are used) |
+| `/wcpu config` | list every setting; hover shows the description, default and range, click to edit |
+| `/wcpu config <setting>` | show one setting with its description |
+| `/wcpu config <setting> <value>` | change a setting, save it and apply it (restart-only settings are saved and apply after a restart) |
+| `/wcpu config reset <setting>` | restore the default |
+
+Tab completion works on settings and values and shows the description as a tooltip.
+
+When Lithium is installed, wcpu disables Lithium's `alloc.chunk_random`,
+`entity.inactive_navigations` and experimental `entity.block_caching` mixins through Lithium's
+supported override metadata. They keep mutable state shared by independent region threads; wcpu
+supplies worker-local random state and an atomic path-type cache instead.
 
 ---
 
@@ -280,16 +261,16 @@ Mods whose entity tick touches main-thread-only state can opt that entity type o
 during mod initialization:
 
 ```java
-WcpuApi.registerMainThreadEntity(MyEntityTypes.MY_ENTITY.get());
+wcpuApi.registerMainThreadEntity(MyEntityTypes.MY_ENTITY.get());
 ```
 
-Wcpu will tick those entities on the server thread. Registration is process-wide and
-idempotent; register only the affected types so other entities retain parallel ticking. Wcpu
+wcpu will tick those entities on the server thread. The same can be done without code through `compatibility.mainThreadEntities`, and common cases (Create Big Cannons, Ritchie's Projectile Library, Simulated) are built in. Registration is process-wide and
+idempotent; register only the affected types so other entities retain parallel ticking. wcpu
 waits for all active regions before replaying a whole entity tick because its interaction range is
 unknown. Block entities have the same safety fallback:
 
 ```java
-WcpuApi.registerMainThreadBlockEntity(MyBlockEntityTypes.MACHINE.get());
+wcpuApi.registerMainThreadBlockEntity(MyBlockEntityTypes.MACHINE.get());
 ```
 
 Treat whole-type registration as a safety fallback, not the normal compatibility fix. Most mods can
@@ -306,7 +287,7 @@ need it after the underlying code is corrected.
 If only one operation is unsafe, keep the entity tick parallel and hand off just that operation:
 
 ```java
-WcpuApi.executeOnMainThread(() -> updateMainThreadOnlyState());
+wcpuApi.executeOnMainThread(() -> updateMainThreadOnlyState());
 ```
 
 Calls are always queued and return before the operation runs, so code after this call cannot depend
@@ -316,7 +297,7 @@ World access should stay on the region that owns its position. Owner-local calls
 cross-region and external-thread calls are queued for the current owner:
 
 ```java
-WcpuApi.executeOnRegion(level, machinePos, () -> {
+wcpuApi.executeOnRegion(level, machinePos, () -> {
     BlockEntity blockEntity = level.getBlockEntity(machinePos);
     if (blockEntity instanceof MyMachine machine) {
         machine.acceptTransfer(amount);
@@ -324,61 +305,57 @@ WcpuApi.executeOnRegion(level, machinePos, () -> {
 });
 ```
 
-Use `WcpuApi.ownsCurrentRegion(level, pos)` to select an owner-local fast path, or
+Use `wcpuApi.ownsCurrentRegion(level, pos)` to select an owner-local fast path, or
 `requireCurrentRegion(level, pos)` as a development assertion. `isRegionThread()` reports whether
-the current call has a Wcpu region ownership scope; it does not mistake an unrelated async
+the current call has a wcpu region ownership scope; it does not mistake an unrelated async
 thread for the server thread.
 
 Main-thread code that touches a known world position should use the positional overload. It leases
 the target owner before running while unrelated regions continue:
 
 ```java
-WcpuApi.executeOnMainThread(level, machinePos,
+wcpuApi.executeOnMainThread(level, machinePos,
     () -> updateMainThreadOnlyWorldState(level, machinePos));
 ```
-
-We tested independent region loops with:
-
-- NeoForge alone, no other mods
-- Lithium 0.15.4 + Mekanism 10.7.19.85 + Mekanism Generators 10.7.19.85 + Naturalist 2.0.3 +
-  Citadel 2.7.1 + Friends & Foes 4.0.27 + Resourceful Lib 3.0.12 + ScalableLux 0.3.0-alpha.0.8
-- C2ME 0.4.0-alpha.0.120 with the full mod set above
-
-Across these setups, entity queries returned byte-identical results with sharding on and off (0
-differences across 25 spatial queries). Block entities and scheduled ticks behaved the same, with
-no ownership violations or serial fallbacks. Vanilla and Naturalist retention probes passed, all
-six tested Generators blocks created block entities, and two real clients negotiated the optional
-visualizer payload while three regions ran concurrently.
-
-Lithium needs a little special handling because its spawning optimization reads entity storage
-internals directly. Wcpu's sharded storage preserves that path. Region block entities can also
-register Lithium world-border listeners concurrently, so Wcpu serializes that one registration
-method instead of locking whole ticks around Lithium's internal `WeakHashMap`.
 
 ---
 
 ## Limitations
 
-Wcpu protects the shared state it knows about, but it cannot make unknown mod code thread-safe.
+wcpu protects the shared state it knows about, but it cannot make unknown mod code thread-safe.
 
-- **Other mods can still introduce races.** Wcpu protects four level-global containers reachable
-  from entity ticks. A mod that keeps its own unsafe global state can still race.
-- **C2ME 0.4.0-alpha.0.120 has one test limitation.** Full live benchmarks, save/unload, restart,
-  and shutdown pass with C2ME installed. Its natural-spawning GameTest fails in both serial and
-  parallel regional modes, so that specific test is not counted as passing compatibility coverage.
-- Numbers above are from a synthetic benchmark on one machine. Your server is not this benchmark.
+- **Other mods can still introduce races.** A mod that keeps its own unsafe global state can still
+  race. Runtime fallbacks always log the suspected mod and source frame locally; nothing is sent
+  anywhere, so reports only exist in the chat message and the log.
+- **Chunk generation.** A region worker cannot wait for a chunk to generate. While chunks are being
+  generated, parallel ticking pauses for a few seconds and the affected region may skip part of one
+  tick. Pre-generating the area avoids this.
+- **Tested setup.** Development is checked against Create, Sable, Simulated, Create Big Cannons and
+  Ritchie's Projectile Library on NeoForge 21.1.x. Other mods are untested. The Fabric module is
+  inherited from upstream and not tested here.
+- The unit tests and GameTests that run in CI cover the region machinery, not every mod
+  interaction.
+- Upstream Tessellate published benchmark numbers for a many-region setup; they were measured on
+  different hardware and a different mod set and are not repeated here. Measure on your own server
+  with `/wcpu status` and `/wcpu phases`.
 
 ---
 
 ## Building
 
+GitHub Actions builds every push (`Build JAR` workflow, artifact `wcpu-neoforge`). Locally:
+
 ```
-./gradlew build          # requires JDK 21
-./gradlew runServer      # dev server with RCON on 25585
-python tools/bench_isolation.py --mobs 6000
-python tools/bench_parallel.py --areas 4 --mobs 1200
-python tools/verify_blockevents.py --soak-seconds 1800
+./gradlew build                 # requires JDK 21
+./gradlew runGameTestServer     # NeoForge GameTests
+./gradlew runServer             # dev server with RCON on 25585
 ```
 
-The benchmark scripts read the RCON password from `WCPU_RCON_PASSWORD`; use the same value for
-`rcon.password` in the dev server's local `server.properties`.
+The scripts in `tools/` are inherited from upstream (benchmarks and verification against a running
+dev server). They read the RCON password from `WCPU_RCON_PASSWORD`; use the same value for
+`rcon.password` in the dev server's `server.properties`. They have not been re-run for this fork.
+
+## License
+
+MIT, see `LICENSE`. Copyright of the original Tessellate code belongs to its author; the fork's
+changes are under the same license.

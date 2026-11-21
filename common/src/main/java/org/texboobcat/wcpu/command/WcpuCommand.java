@@ -423,7 +423,7 @@ public final class WcpuCommand {
         }
         if (region == null) {
             player.displayClientMessage(Component.literal(String.format(
-                "Wcpu | chunk [%d, %d] | no active region (main thread)", chunk.x, chunk.z)),
+                "wcpu | chunk [%d, %d] | no active region (main thread)", chunk.x, chunk.z)),
                 true);
             return;
         }
@@ -448,7 +448,7 @@ public final class WcpuCommand {
                 chunk.getMinBlockX(), chunk.getMinBlockZ(), 16, y, 10, 1);
         }
         player.displayClientMessage(Component.literal(String.format(
-            "Wcpu | region #%d | last worker T%d (pooled) | chunk [%d, %d] | rate 1/%d",
+            "wcpu | region #%d | last worker T%d (pooled) | chunk [%d, %d] | rate 1/%d",
             region.id(), region.lastWorkerIndex(), chunk.x, chunk.z, region.tickDivisor())), true);
     }
 
