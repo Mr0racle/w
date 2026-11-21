@@ -44,7 +44,10 @@ public final class SablePlots {
             container = lookup.unreflect(getContainer);
             bounds = lookup.unreflect(type.getMethod("inBounds", int.class, int.class));
             chunk = lookup.unreflect(type.getMethod("getChunk", ChunkPos.class));
-        } catch (ReflectiveOperationException | LinkageError absent) {
+        } catch (Throwable absent) {
+            // Whatever goes wrong here, Sable support stays off. An error escaping a static
+            // initializer would surface on a region worker as ExceptionInInitializerError and be
+            // taken for a real failure of the region.
             container = null;
         }
         GET_CONTAINER = container;

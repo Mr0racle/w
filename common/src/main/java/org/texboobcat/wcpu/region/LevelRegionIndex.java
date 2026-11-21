@@ -601,8 +601,18 @@ public final class LevelRegionIndex implements RegionizerListener {
             region -> this.states.get(region.id()).release());
     }
 
+    // The failure and, when it is only a wrapper, the exception underneath: an
+    // ExceptionInInitializerError says nothing until the cause is shown next to it.
+    private static String describe(Throwable failure) {
+        Throwable root = failure;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root == failure ? failure.toString() : failure + " <- " + root;
+    }
+
     private static void onWorkerFailure(Throwable failure) {
-        RegionTracker.degradeToSerial("region threw on a worker thread: " + failure, failure);
+        RegionTracker.degradeToSerial("region threw on a worker thread: " + describe(failure), failure);
         LOGGER.error("wcpu: region tick failed on a worker thread", failure);
     }
 
