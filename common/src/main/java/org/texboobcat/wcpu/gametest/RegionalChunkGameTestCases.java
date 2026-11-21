@@ -532,14 +532,20 @@ public final class RegionalChunkGameTestCases {
         helper.assertTrue(sheep.hurt(level.damageSources().mobAttack(attacker), 1.0F),
             "could not trigger sheep panic");
 
-        helper.runAfterDelay(60, () -> {
+        // Vanilla's panic goal picks a random flee target and sometimes finds none, so one hit is
+        // not a guarantee. Hit again every 20 ticks and pass as soon as the sheep has run.
+        helper.onEachTick(() -> {
+            if (helper.getTick() % 20 == 10) {
+                sheep.hurt(level.damageSources().mobAttack(attacker), 1.0F);
+            }
+        });
+        helper.succeedWhen(() -> {
             double dx = sheep.getX() - sheepX;
             double dz = sheep.getZ() - sheepZ;
             helper.assertTrue(dx * dx + dz * dz > 0.25,
                 "damaged sheep did not run panic AI");
             sheep.discard();
             attacker.discard();
-            helper.succeed();
         });
     }
 
