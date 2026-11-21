@@ -1,5 +1,7 @@
 # wcpu
 
+[Русская версия](README.ru.md)
+
 wcpu is a performance mod for Minecraft 1.21.1 (NeoForge) that lets a server use more than one CPU
 core for the game world. It splits the loaded world into independent regions and ticks them on
 different cores. If one region gets too expensive it is slowed down on its own instead of dragging
@@ -169,8 +171,6 @@ diagnostics.
 
 ---
 
----
-
 ## Configuration
 
 File: `config/wcpu-common.toml`. Every option can also be changed in game with
@@ -196,7 +196,7 @@ they are read while a world is being built. A setting file from the old Tessella
 | `regions.scopedBlockEntityTicking` | `true` | tick block entities per region |
 | `regions.scopedScheduledTicks` | `true` | region-owned block/fluid scheduled ticks. **restart** |
 | `regions.scopedBlockEvents` | `true` | region-owned block-event queues |
-| `regions.adaptiveThrottling` | `true` | the regional TPS system (see the trade-off below) |
+| `regions.adaptiveThrottling` | `true` | the regional TPS system (see "The trade-off" above) |
 | `regions.budgetMillis` | `25.0` | minimum budget kept for region work |
 | `regions.targetTickMillis` | `45.0` | tick time to steer toward; raise to intervene later |
 | `regions.minThrottleMillis` | `2.0` | regions cheaper than this are never slowed |
