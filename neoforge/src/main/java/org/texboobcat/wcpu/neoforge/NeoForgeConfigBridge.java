@@ -22,7 +22,7 @@ final class NeoForgeConfigBridge implements ConfigBridge {
             Object range = spec.getRange();
             entries.add(new Entry(path, spec.getComment() == null ? "" : spec.getComment(),
                 String.valueOf(value.get()), String.valueOf(spec.getDefault()),
-                range == null ? "" : String.valueOf(range), false));
+                range == null ? "" : String.valueOf(range), WcpuNeoForgeConfig.needsRestart(path)));
         }
         return entries;
     }

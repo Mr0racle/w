@@ -291,13 +291,28 @@ public final class WcpuNeoForgeConfig {
 
     // Reads every value into Config. Also called right after /wcpu config changes one, so the change
     // is live without waiting for the file watcher.
+    // Settings read once while a level is built (scheduled-tick queues, region grid, entity storage).
+    // Changing them live leaves the running world half-converted, so they keep the value the server
+    // started with until the next restart; the file still stores the new one.
+    private static final java.util.Map<String, Object> STARTUP = new java.util.HashMap<>();
+
+    static boolean needsRestart(String path) {
+        return path.equals("regions.enabled") || path.equals("regions.sectionShift")
+            || path.equals("regions.scopedScheduledTicks") || path.equals("regions.shardEntityStorage");
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T atStartup(ModConfigSpec.ConfigValue<T> value) {
+        return (T) STARTUP.computeIfAbsent(String.join(".", value.getPath()), key -> value.get());
+    }
+
     static void apply() {
         Config.apply(new Config.Values(
-            REGIONS_ENABLED.get(), SECTION_SHIFT.get(), MERGE_RADIUS.get(), VERIFY_INTERVAL.get(),
+            atStartup(REGIONS_ENABLED), atStartup(SECTION_SHIFT), MERGE_RADIUS.get(), VERIFY_INTERVAL.get(),
             SCOPED_ENTITY_TICKING.get(), SCOPED_BLOCK_ENTITY_TICKING.get(),
-            SCOPED_SCHEDULED_TICKS.get(), SCOPED_BLOCK_EVENTS.get(), ADAPTIVE_THROTTLING.get(),
+            atStartup(SCOPED_SCHEDULED_TICKS), SCOPED_BLOCK_EVENTS.get(), ADAPTIVE_THROTTLING.get(),
             REGION_BUDGET_MILLIS.get(), TARGET_TICK_MILLIS.get(), MIN_THROTTLE_MILLIS.get(),
-            MAX_TICK_DIVISOR.get(), SHARD_ENTITY_STORAGE.get(), ASSERT_SHARD_OWNERSHIP.get(),
+            MAX_TICK_DIVISOR.get(), atStartup(SHARD_ENTITY_STORAGE), ASSERT_SHARD_OWNERSHIP.get(),
             PARALLEL_TICKING.get(), DIRECT_WORKER_CHUNK_READS.get(),
             PARALLEL_NATURAL_SPAWNING.get(), ASYNC_REGION_LOOPS.get(), WORKER_THREADS.get(),
             THREAD_LOCAL_RANDOM.get(), SERIALIZE_ENTITY_TICKS.get(),

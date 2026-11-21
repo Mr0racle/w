@@ -113,7 +113,7 @@ final class WcpuConfigCommand {
             .append(text(entry.range().isEmpty() ? "" : "   Range: " + entry.range(),
                 ChatFormatting.DARK_GRAY)), false);
         if (entry.needsRestart()) {
-            source.sendSuccess(() -> text("Takes effect after the world is reloaded.",
+            source.sendSuccess(() -> text("Saved, but takes effect only after the server is restarted.",
                 ChatFormatting.YELLOW), false);
         }
         source.sendSuccess(() -> text("Change: /wcpu config " + entry.path() + " <value>",
@@ -144,7 +144,7 @@ final class WcpuConfigCommand {
             .append(text(now.map(ConfigBridge.Entry::value).orElse("?"), ChatFormatting.GREEN))
             .append(text("  (saved)", ChatFormatting.DARK_GRAY)), true);
         if (now.isPresent() && now.get().needsRestart()) {
-            source.sendSuccess(() -> text("Takes effect after the world is reloaded.",
+            source.sendSuccess(() -> text("Saved, but takes effect only after the server is restarted.",
                 ChatFormatting.YELLOW), false);
         }
         return 1;
