@@ -213,6 +213,9 @@ public final class RegionTracker {
     }
 
     public static void degradeToSerial(String reason, @Nullable Throwable failure) {
+        if (ChunkUnavailableException.causedBy(failure)) {
+            return; // an unloaded chunk only pauses parallel ticking, which was already requested
+        }
         degradeToSerial(failure == null ? "unknown_safety_check" : "worker_exception",
             reason, failure);
     }

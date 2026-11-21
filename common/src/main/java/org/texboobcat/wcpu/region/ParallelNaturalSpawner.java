@@ -435,6 +435,9 @@ public final class ParallelNaturalSpawner {
     }
 
     public static void degradeToSerial(String reason, @Nullable Throwable failure) {
+        if (ChunkUnavailableException.causedBy(failure)) {
+            return;
+        }
         degradeToSerial(failure == null ? "unknown_safety_check" : "worker_exception",
             reason, failure);
     }

@@ -161,7 +161,7 @@ public abstract class LevelMixin implements LevelRegionIndex.RegionalLevelAccess
         ChunkAccess chunk = ((LevelRegionIndex.RegionalChunkAccess) level.getChunkSource())
             .wcpu$getChunkForWorker(x, z, status, load);
         if (chunk == null && load) {
-            throw new IllegalStateException("Should always be able to create a chunk!");
+            throw new org.texboobcat.wcpu.region.ChunkUnavailableException();
         }
         cir.setReturnValue(chunk);
     }
