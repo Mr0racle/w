@@ -271,7 +271,8 @@ public final class WcpuNeoForgeConfig {
 
     private static final ModConfigSpec.ConfigValue<String> LANGUAGE = BUILDER
         .comment("Language of the /wcpu command output: en or ru. Change it in game with /wcpu language.")
-        .defineInList("general.language", "en", java.util.List.of("en", "ru"));
+        .define("general.language", "en",
+            value -> value instanceof String code && org.texboobcat.wcpu.Lang.supported(code));
 
     private static final ModConfigSpec.BooleanValue LOG_REGION_CHANGES = BUILDER
         .comment("Log every region create/merge/split/destroy. Very noisy; development only.")
