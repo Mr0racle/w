@@ -8,6 +8,7 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import org.texboobcat.wcpu.Config;
 import org.texboobcat.wcpu.Lang;
+import org.texboobcat.wcpu.SablePlots;
 import org.texboobcat.wcpu.region.LevelRegionIndex;
 import org.texboobcat.wcpu.region.LoadBalancePlanner;
 import org.texboobcat.wcpu.region.MainThreadBoundaries;
@@ -146,7 +147,18 @@ final class WcpuReport {
                 violations == 0 ? ChatFormatting.GREEN : ChatFormatting.RED))
             .append(sep()).append(text(Lang.f("%d failure(s)", failures),
                 failures == 0 ? ChatFormatting.GREEN : ChatFormatting.RED)));
+        sendSableLine(source);
         return regions;
+    }
+
+    // Only when Sable is installed: whether workers can read its plot chunks, and why not.
+    private static void sendSableLine(CommandSourceStack source) {
+        String sable = SablePlots.status();
+        if (sable != null) {
+            boolean active = "active".equals(sable);
+            send(source, label("Sable plots", text(Lang.t(sable),
+                active ? ChatFormatting.GREEN : ChatFormatting.RED)));
+        }
     }
 
     private static MutableComponent flag(boolean on) {

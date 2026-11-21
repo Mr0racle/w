@@ -505,7 +505,7 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
         }
 
         // Sable plot chunks: answered the way Sable answers them on the main thread.
-        ChunkAccess plot = SablePlots.chunk(this.level, x, z, true);
+        ChunkAccess plot = wcpu$plotChunk(x, z, true);
         cir.setReturnValue(plot != null ? plot : wcpu$getChunkForWorker(x, z, status, load));
     }
 
@@ -516,7 +516,7 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
         if (!RegionWorkers.isWorkerThread()) {
             return;
         }
-        LevelChunk plot = SablePlots.chunk(this.level, x, z, false);
+        LevelChunk plot = wcpu$plotChunk(x, z, false);
         if (plot != null) {
             cir.setReturnValue(plot);
             return;
@@ -533,13 +533,34 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
         if (!RegionWorkers.isWorkerThread()) {
             return;
         }
-        ChunkAccess chunk = SablePlots.chunk(this.level, x, z, true);
+        ChunkAccess chunk = wcpu$plotChunk(x, z, true);
         if (chunk == null) {
             chunk = wcpu$getChunkForWorker(x, z, status, load);
         }
         cir.setReturnValue(chunk == null
             ? GenerationChunkHolder.UNLOADED_CHUNK_FUTURE
             : CompletableFuture.completedFuture(ChunkResult.of(chunk)));
+    }
+
+    // Sable's plot container for this level, found on first use and then kept.
+    @Unique
+    private Object wcpu$plots;
+
+    @Unique
+    @Nullable
+    private LevelChunk wcpu$plotChunk(int x, int z, boolean orEmpty) {
+        if (!SablePlots.available()) {
+            return null;
+        }
+        Object plots = this.wcpu$plots;
+        if (plots == null) {
+            plots = SablePlots.containerOf(this.level);
+            if (plots == null) {
+                return null;
+            }
+            this.wcpu$plots = plots;
+        }
+        return SablePlots.chunk(plots, this.level, x, z, orEmpty);
     }
 
     @Override
