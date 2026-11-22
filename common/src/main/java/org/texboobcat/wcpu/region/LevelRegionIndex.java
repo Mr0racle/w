@@ -1002,12 +1002,8 @@ public final class LevelRegionIndex implements RegionizerListener {
      * another thread must not change them until that phase ends.
      */
     public boolean ownedByBusyForeignRegion(Region mine, long chunkPos) {
-        Region owner = this.regionizer.regionForChunkLong(chunkPos);
-        if (owner == null || owner == mine) {
-            return false;
-        }
-        RegionTickState state = this.states.get(owner.id());
-        return state != null && state.inBlockEntityPhase();
+        return ForeignAccessStats.busyForeign(mine, this.regionizer.regionForChunkLong(chunkPos),
+            this.states);
     }
 
     public boolean chunkIdle(long chunkPos) {

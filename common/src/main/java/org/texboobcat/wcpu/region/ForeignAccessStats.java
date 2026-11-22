@@ -22,6 +22,13 @@ public final class ForeignAccessStats {
     private ForeignAccessStats() {
     }
 
+    /** Whether {@code owner} is another region that is ticking its block entities right now. */
+    static boolean busyForeign(Region mine, Region owner,
+                                 it.unimi.dsi.fastutil.ints.Int2ObjectMap<RegionTickState> states) {
+        RegionTickState state = owner == null || owner == mine ? null : states.get(owner.id());
+        return state != null && state.inBlockEntityPhase();
+    }
+
     /** Counts one refusal against the type of the block entity that was asked for. */
     public static void record(ServerLevel level, BlockPos pos) {
         ChunkAccess chunk = level.getChunkSource().getChunk(pos.getX() >> 4, pos.getZ() >> 4,
