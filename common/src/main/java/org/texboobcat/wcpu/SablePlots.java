@@ -123,6 +123,15 @@ public final class SablePlots {
         }
     }
 
+    /** Whether a chunk position lies inside Sable's plot grid (where Sable, not the chunk map, answers). */
+    public static boolean inGrid(Object container, int x, int z) {
+        try {
+            return (boolean) IN_BOUNDS.invoke(container, x, z);
+        } catch (Throwable failure) {
+            return false;
+        }
+    }
+
     /**
      * The plot chunk at this position, or null when the position is not in the plot grid (so the
      * normal lookup applies). Inside the grid it is the real chunk, or, when {@code orEmpty} is

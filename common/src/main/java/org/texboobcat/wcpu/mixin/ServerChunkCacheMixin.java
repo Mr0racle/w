@@ -504,9 +504,7 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
             return;
         }
 
-        // Sable plot chunks: answered the way Sable answers them on the main thread.
-        ChunkAccess plot = wcpu$plotChunk(x, z, true);
-        cir.setReturnValue(plot != null ? plot : wcpu$getChunkForWorker(x, z, status, load));
+        cir.setReturnValue(wcpu$getChunkForWorker(x, z, status, load));
     }
 
     // Vanilla rejects every off-thread getChunkNow call before checking loaded chunks.
@@ -516,9 +514,10 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
         if (!RegionWorkers.isWorkerThread()) {
             return;
         }
-        LevelChunk plot = wcpu$plotChunk(x, z, false);
-        if (plot != null) {
-            cir.setReturnValue(plot);
+        // getChunkNow never creates anything: in Sable's plot grid it is the plot chunk or null.
+        Object plots = wcpu$plotsOrNull();
+        if (plots != null && SablePlots.inGrid(plots, x, z)) {
+            cir.setReturnValue(SablePlots.chunk(plots, this.level, x, z, false));
             return;
         }
         ChunkAccess chunk = wcpu$getChunkForWorker(x, z, ChunkStatus.FULL, false);
@@ -533,10 +532,7 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
         if (!RegionWorkers.isWorkerThread()) {
             return;
         }
-        ChunkAccess chunk = wcpu$plotChunk(x, z, true);
-        if (chunk == null) {
-            chunk = wcpu$getChunkForWorker(x, z, status, load);
-        }
+        ChunkAccess chunk = wcpu$getChunkForWorker(x, z, status, load);
         cir.setReturnValue(chunk == null
             ? GenerationChunkHolder.UNLOADED_CHUNK_FUTURE
             : CompletableFuture.completedFuture(ChunkResult.of(chunk)));
@@ -548,27 +544,31 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
 
     @Unique
     @Nullable
-    private LevelChunk wcpu$plotChunk(int x, int z, boolean orEmpty) {
+    private Object wcpu$plotsOrNull() {
         if (!SablePlots.available()) {
             return null;
         }
         Object plots = this.wcpu$plots;
         if (plots == null) {
             plots = SablePlots.containerOf(this.level);
-            if (plots == null) {
-                return null;
-            }
             this.wcpu$plots = plots;
         }
-        return SablePlots.chunk(plots, this.level, x, z, orEmpty);
+        return plots;
     }
 
     @Override
     @Nullable
     public ChunkAccess wcpu$getChunkForWorker(int x, int z, ChunkStatus status,
                                                     boolean load) {
-        // Reads go through the cache's own lookup so chunks served by other mods (Sable plots) are
-        // found; broadcasts and everything else keep using the ChunkMap directly.
+        // Every worker chunk read ends up here (Level.getChunk calls it directly). A position in
+        // Sable's plot grid is answered the way Sable answers it on the main thread: the plot
+        // chunk, or an empty chunk where no plot exists. It is never "not loaded".
+        Object plots = wcpu$plotsOrNull();
+        if (plots != null && SablePlots.inGrid(plots, x, z)) {
+            return SablePlots.chunk(plots, this.level, x, z, true);
+        }
+        // Reads go through the cache's own lookup so chunks served by other mods are found;
+        // broadcasts and everything else keep using the ChunkMap directly.
         ChunkHolder holder = getVisibleChunkIfPresent(ChunkPos.asLong(x, z));
         if (holder != null) {
             ChunkAccess chunk = holder.getChunkIfPresent(status);
