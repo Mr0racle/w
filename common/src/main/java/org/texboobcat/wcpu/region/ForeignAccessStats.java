@@ -29,6 +29,14 @@ public final class ForeignAccessStats {
         return state != null && state.inBlockEntityPhase();
     }
 
+    /** Waits up to a timeout for the region to stop running; true if it is idle (or unknown). */
+    static boolean awaitOwner(Region owner,
+                              it.unimi.dsi.fastutil.ints.Int2ObjectMap<RegionTickState> states,
+                              long timeoutNanos) {
+        RegionTickState state = owner == null ? null : states.get(owner.id());
+        return state == null || state.awaitIdle(timeoutNanos);
+    }
+
     /** Counts one refusal against the type of the block entity that was asked for. */
     public static void record(ServerLevel level, BlockPos pos) {
         ChunkAccess chunk = level.getChunkSource().getChunk(pos.getX() >> 4, pos.getZ() >> 4,
