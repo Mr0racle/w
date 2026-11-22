@@ -30,6 +30,9 @@ final class WcpuReport {
     private static final double BUDGET_MS = 50.0;
     private static final double WARN_MS = 10.0;
     private static final double BAD_MS = 25.0;
+    // One region this heavy and this large a share of all region time leaves little to parallelise.
+    private static final double DOMINANT_MS = 5.0;
+    private static final double DOMINANT_SHARE = 0.6;
     private static final int BAR = 12;
     private static final int DEFAULT_ROWS = 10;
     private static final String SEP = " | ";
@@ -147,8 +150,36 @@ final class WcpuReport {
                 violations == 0 ? ChatFormatting.GREEN : ChatFormatting.RED))
             .append(sep()).append(text(Lang.f("%d failure(s)", failures),
                 failures == 0 ? ChatFormatting.GREEN : ChatFormatting.RED)));
+        sendDominanceLine(source);
+        long refused = RegionTracker.foreignBlockEntityRefusals();
+        if (refused > 0) {
+            send(source, text(Lang.f("%d block entity access(es) across running regions refused (safe)",
+                refused), ChatFormatting.YELLOW));
+        }
         sendSableLine(source);
         return regions;
+    }
+
+    // A single region carrying most of the work cannot be spread over workers; say so, and say
+    // what to try, instead of leaving the server owner to work it out from the region list.
+    private static void sendDominanceLine(CommandSourceStack source) {
+        List<Region> regions = allRegions();
+        if (regions.isEmpty() || RegionWorkers.poolSize() < 2) {
+            return;
+        }
+        double total = 0.0;
+        for (Region region : regions) {
+            total += costMs(region);
+        }
+        Region worst = regions.get(0);
+        double ms = costMs(worst);
+        double share = total > 0.0 ? ms / total : 0.0;
+        if (ms < DOMINANT_MS || share < DOMINANT_SHARE) {
+            return;
+        }
+        send(source, text(Lang.f("! Region #%d is %d%% of all region time (%.1f ms, up to %d chunks): "
+                + "workers cannot split it. Try a lower regions.mergeRadius",
+            worst.id(), Math.round(100.0 * share), ms, worst.chunkSpan()), ChatFormatting.YELLOW));
     }
 
     // Only when Sable is installed: whether workers can read its plot chunks, and why not.
@@ -243,7 +274,8 @@ final class WcpuReport {
             .append(text(Lang.f("scheduled %s\n", ms(load.average(RegionLoad.Metric.SCHEDULED))), ChatFormatting.GRAY))
             .append(text(Lang.f("queue %d msg\n", Math.round(load.average(RegionLoad.Metric.QUEUE))), ChatFormatting.GRAY))
             .append(text(Lang.f("CPU %d%% of a tick\n", Math.round(100.0 * load.average(RegionLoad.Metric.CPU))), ChatFormatting.GRAY))
-            .append(text(Lang.f("%d section(s), near [%d, %d]\n", region.sectionCount(), blockX, blockZ), ChatFormatting.GRAY))
+            .append(text(Lang.f("%d section(s), up to %d chunk(s), near [%d, %d]\n",
+                region.sectionCount(), region.chunkSpan(), blockX, blockZ), ChatFormatting.GRAY))
             .append(text(Lang.f("last thread %s", region.lastThreadName()), ChatFormatting.GRAY));
         MutableComponent row = text("#" + region.id() + " ", ChatFormatting.WHITE)
             .append(bar(ms))

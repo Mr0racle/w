@@ -151,6 +151,18 @@ public final class RegionTracker {
     private static volatile String degradeReason;
     // How long parallel ticking stays off after a worker meets an unloaded chunk.
     private static final long CHUNK_MISS_PAUSE_MILLIS = Long.getLong("wcpu.chunkMissPauseMs", 5000L);
+    private static final java.util.concurrent.atomic.AtomicLong FOREIGN_BLOCK_ENTITY_REFUSALS =
+        new java.util.concurrent.atomic.AtomicLong();
+
+    /** A worker asked for a block entity that another running region owns; it was told there is none. */
+    public static void foreignBlockEntityRefused() {
+        FOREIGN_BLOCK_ENTITY_REFUSALS.incrementAndGet();
+    }
+
+    public static long foreignBlockEntityRefusals() {
+        return FOREIGN_BLOCK_ENTITY_REFUSALS.get();
+    }
+
     private static final java.util.concurrent.atomic.AtomicLong UNAVAILABLE_CHUNKS =
         new java.util.concurrent.atomic.AtomicLong();
     private static final java.util.concurrent.atomic.AtomicLong DEFERRED_AUTOSAVES =

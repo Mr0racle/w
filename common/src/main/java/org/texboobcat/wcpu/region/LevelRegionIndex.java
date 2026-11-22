@@ -991,6 +991,15 @@ public final class LevelRegionIndex implements RegionizerListener {
         return state == null || !state.isInFlight();
     }
 
+    /**
+     * Whether a chunk belongs to a region other than {@code mine} that is running on a worker
+     * right now. Its block entities are being ticked, so another thread must not reach into them.
+     */
+    public boolean ownedByBusyForeignRegion(Region mine, long chunkPos) {
+        Region owner = this.regionizer.regionForChunkLong(chunkPos);
+        return owner != null && owner != mine && !regionIdle(owner.id());
+    }
+
     public boolean chunkIdle(long chunkPos) {
         Region region = this.regionizer.regionForChunkLong(chunkPos);
         return region == null || regionIdle(region.id());

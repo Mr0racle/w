@@ -55,6 +55,11 @@ public final class Region {
         return this.sections.size();
     }
 
+    /** Upper bound on the chunks the region covers: its sections at full size. */
+    public int chunkSpan() {
+        return this.sections.size() << (2 * this.sectionShift);
+    }
+
     // Live, read-only view. The regionizer owns mutation.
     public LongSet sections() {
         return this.sectionsView;

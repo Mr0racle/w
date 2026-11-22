@@ -187,6 +187,19 @@ public abstract class LevelMixin implements LevelRegionIndex.RegionalLevelAccess
             cir.setReturnValue(null);
             return;
         }
+        // A block entity is only safe to touch from the region that ticks it. When a worker reaches
+        // into another region that is running right now (a world item meeting a Sable plot's belt),
+        // the two would change the same lists at once, so the entity is reported as absent.
+        org.texboobcat.wcpu.region.Region mine = org.texboobcat.wcpu.guard.RegionThreadContext.current();
+        if (mine != null) {
+            LevelRegionIndex index = RegionTracker.index(level);
+            if (index != null && index.ownedByBusyForeignRegion(mine,
+                    net.minecraft.world.level.ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4))) {
+                RegionTracker.foreignBlockEntityRefused();
+                cir.setReturnValue(null);
+                return;
+            }
+        }
         ChunkAccess chunk = level.getChunkSource().getChunk(
             pos.getX() >> 4, pos.getZ() >> 4, ChunkStatus.FULL, false);
         cir.setReturnValue(chunk instanceof LevelChunk levelChunk
