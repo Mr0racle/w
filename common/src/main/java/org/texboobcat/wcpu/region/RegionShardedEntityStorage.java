@@ -85,6 +85,17 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
         this.index = index;
     }
 
+    // The main thread reading a shard's sections (mods ask for the entities around a contraption
+    // after the level tick) waits for the region that owns them, so a worker moving an entity cannot
+    // change a section's list while it is being walked. Workers read without waiting.
+    private void leaseForMainThread(long cell) {
+        LevelRegionIndex bound = this.index;
+        if (bound != null && Config.asyncRegionLoops
+            && org.texboobcat.wcpu.guard.RegionThreadContext.onMainThread()) {
+            bound.leaseCell(cell);
+        }
+    }
+
     public void leaseSection(long sectionKey) {
         LevelRegionIndex bound = this.index;
         if (bound != null && Config.asyncRegionLoops
@@ -311,8 +322,10 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
         // cell. Handle it without allocating the abort tracker, since this is the hottest read path
         // in the game.
         if (minCellX == maxCellX && minCellZ == maxCellZ) {
-            EntitySectionStorage<T> shard = current.get(RegionSectionPos.pack(minCellX, minCellZ));
+            long cell = RegionSectionPos.pack(minCellX, minCellZ);
+            EntitySectionStorage<T> shard = current.get(cell);
             if (shard != null) {
+                leaseForMainThread(cell);
                 shard.forEachAccessibleNonEmptySection(boundingBox, consumer);
             }
             return;
@@ -321,10 +334,12 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
         AbortTracker<T> tracker = new AbortTracker<>(consumer);
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-                EntitySectionStorage<T> shard = current.get(RegionSectionPos.pack(cellX, cellZ));
+                long cell = RegionSectionPos.pack(cellX, cellZ);
+                EntitySectionStorage<T> shard = current.get(cell);
                 if (shard == null) {
                     continue;
                 }
+                leaseForMainThread(cell);
                 // Limit the traversal, not the entity filter: the caller's consumer still holds
                 // the original box. Besides avoiding repeated out-of-shard AVL walks, this lets
                 // Lithium's direct-section path see the shard-sized range it can optimize.
