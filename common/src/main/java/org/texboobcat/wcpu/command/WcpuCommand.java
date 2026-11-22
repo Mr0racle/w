@@ -368,6 +368,7 @@ public final class WcpuCommand {
 
     private static int clearViolations(CommandSourceStack source) {
         RegionTracker.violations().clear();
+        org.texboobcat.wcpu.region.ForeignAccessStats.reset();
         source.sendSuccess(() -> Component.literal("wcpu: violation log cleared"), false);
         return 1;
     }

@@ -208,6 +208,7 @@ public abstract class LevelMixin implements LevelRegionIndex.RegionalLevelAccess
         if (index != null && index.ownedByBusyForeignRegion(mine,
                 net.minecraft.world.level.ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4))) {
             RegionTracker.foreignBlockEntityRefused();
+            org.texboobcat.wcpu.region.ForeignAccessStats.record(level, pos);
             return true;
         }
         return false;

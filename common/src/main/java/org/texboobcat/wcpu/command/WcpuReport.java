@@ -9,6 +9,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.texboobcat.wcpu.Config;
 import org.texboobcat.wcpu.Lang;
 import org.texboobcat.wcpu.SablePlots;
+import org.texboobcat.wcpu.region.ForeignAccessStats;
 import org.texboobcat.wcpu.region.LevelRegionIndex;
 import org.texboobcat.wcpu.region.LoadBalancePlanner;
 import org.texboobcat.wcpu.region.MainThreadBoundaries;
@@ -155,6 +156,7 @@ final class WcpuReport {
         if (refused > 0) {
             send(source, text(Lang.f("%d block entity access(es) across running regions refused (safe)",
                 refused), ChatFormatting.YELLOW));
+            send(source, text("  " + String.join(", ", ForeignAccessStats.top(4)), ChatFormatting.GRAY));
         }
         sendSableLine(source);
         return regions;
