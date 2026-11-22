@@ -987,6 +987,13 @@ public final class LevelRegionIndex implements RegionizerListener {
         }
     }
 
+    /** Waits for the region owning a cell, but only so long; returns false if it kept running. */
+    public boolean leaseCell(long cell, long timeoutNanos) {
+        Region region = this.regionizer.regionForSection(cell);
+        RegionTickState state = region == null ? null : this.states.get(region.id());
+        return state == null || state.awaitIdle(timeoutNanos);
+    }
+
     public void leaseChunk(long chunkPos) {
         this.leaseCell(RegionSectionPos.fromChunkLong(chunkPos, this.regionizer.sectionShift()));
     }

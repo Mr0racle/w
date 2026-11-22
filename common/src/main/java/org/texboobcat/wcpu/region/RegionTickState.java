@@ -200,6 +200,18 @@ public final class RegionTickState {
         }
     }
 
+    /** Like {@link #awaitIdle()} but gives up; returns whether the region is idle. */
+    public boolean awaitIdle(long timeoutNanos) {
+        long deadline = System.nanoTime() + timeoutNanos;
+        while (this.inFlight.get()) {
+            if (System.nanoTime() - deadline >= 0L) {
+                return false;
+            }
+            java.util.concurrent.locks.LockSupport.parkNanos(50_000L);
+        }
+        return true;
+    }
+
     public void clearBlockEntityBuffer() {
         this.blockEntityBuffer.clear();
         this.reportedBlockEntityCount = 0;

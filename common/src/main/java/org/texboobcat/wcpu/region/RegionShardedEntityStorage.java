@@ -88,11 +88,24 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
     // The main thread reading a shard's sections (mods ask for the entities around a contraption
     // after the level tick) waits for the region that owns them, so a worker moving an entity cannot
     // change a section's list while it is being walked. Workers read without waiting.
+    //
+    // The wait is bounded. Mods call this from inside their own locks (Sable while it freezes or
+    // thaws a plot), and a worker may be waiting for one of those locks, so an unbounded wait could
+    // deadlock the whole server. After one timeout the wait is switched off for the session: a rare
+    // unsynchronised read is better than a hung server.
+    private static final long ENTITY_LEASE_NANOS = 200_000_000L;
+    private static volatile boolean entityLeaseGivenUp;
+
     private void leaseForMainThread(long cell) {
         LevelRegionIndex bound = this.index;
-        if (bound != null && Config.asyncRegionLoops
-            && org.texboobcat.wcpu.guard.RegionThreadContext.onMainThread()) {
-            bound.leaseCell(cell);
+        if (bound != null && !entityLeaseGivenUp && Config.asyncRegionLoops
+            && org.texboobcat.wcpu.guard.RegionThreadContext.onMainThread()
+            && !bound.leaseCell(cell, ENTITY_LEASE_NANOS)) {
+            entityLeaseGivenUp = true;
+            org.slf4j.LoggerFactory.getLogger(RegionShardedEntityStorage.class).warn(
+                "wcpu: a region did not finish within {} ms while the main thread read entities;"
+                    + " entity reads no longer wait for regions this session",
+                ENTITY_LEASE_NANOS / 1_000_000L);
         }
     }
 
