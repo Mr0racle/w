@@ -709,7 +709,12 @@ public final class LevelRegionIndex implements RegionizerListener {
         region.load().time(RegionLoad.Metric.ENTITY, entityStart);
         region.load().setCounts(state.entityCount(), blockEntities.size());
         long nonBlockEntityNanos = System.nanoTime() - regionStart;
-        levelAccess.wcpu$tickRegionalBlockEntities(region, blockEntities);
+        state.setBlockEntityPhase(true);
+        try {
+            levelAccess.wcpu$tickRegionalBlockEntities(region, blockEntities);
+        } finally {
+            state.setBlockEntityPhase(false);
+        }
         return nonBlockEntityNanos;
     }
 
@@ -992,12 +997,17 @@ public final class LevelRegionIndex implements RegionizerListener {
     }
 
     /**
-     * Whether a chunk belongs to a region other than {@code mine} that is running on a worker
-     * right now. Its block entities are being ticked, so another thread must not reach into them.
+     * Whether a chunk belongs to a region other than {@code mine} that is ticking its block
+     * entities on a worker right now. Their item queues and inventories are being walked, so
+     * another thread must not change them until that phase ends.
      */
     public boolean ownedByBusyForeignRegion(Region mine, long chunkPos) {
         Region owner = this.regionizer.regionForChunkLong(chunkPos);
-        return owner != null && owner != mine && !regionIdle(owner.id());
+        if (owner == null || owner == mine) {
+            return false;
+        }
+        RegionTickState state = this.states.get(owner.id());
+        return state != null && state.inBlockEntityPhase();
     }
 
     public boolean chunkIdle(long chunkPos) {

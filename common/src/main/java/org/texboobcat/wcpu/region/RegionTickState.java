@@ -49,6 +49,16 @@ public final class RegionTickState {
     // move, so the only churn is creation and removal.
     private final List<TickingBlockEntity> blockEntityBuffer = new ArrayList<>();
     private volatile int reportedBlockEntityCount;
+    // True only while the region's block entities are being ticked on a worker.
+    private volatile boolean blockEntityPhase;
+
+    public void setBlockEntityPhase(boolean running) {
+        this.blockEntityPhase = running;
+    }
+
+    public boolean inBlockEntityPhase() {
+        return this.blockEntityPhase;
+    }
 
     public RegionTickState(int regionId) {
         this.regionId = regionId;
