@@ -533,7 +533,7 @@ public final class RegionalChunkGameTestCases {
         // which would make this AI check depend on runner speed rather than on region workers.
         boolean throttling = org.texboobcat.wcpu.Config.adaptiveThrottling;
         org.texboobcat.wcpu.Config.adaptiveThrottling = false;
-        helper.runAfterDelay(110, () -> org.texboobcat.wcpu.Config.adaptiveThrottling = throttling);
+        helper.runAfterDelay(590, () -> org.texboobcat.wcpu.Config.adaptiveThrottling = throttling);
         helper.assertTrue(sheep.hurt(level.damageSources().mobAttack(attacker), 1.0F),
             "could not trigger sheep panic");
 

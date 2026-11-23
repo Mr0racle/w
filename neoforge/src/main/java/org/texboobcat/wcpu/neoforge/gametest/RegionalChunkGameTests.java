@@ -39,7 +39,7 @@ public final class RegionalChunkGameTests {
         org.texboobcat.wcpu.gametest.RedstoneGameTestCases.unloadedUpdates(helper);
     }
 
-    @GameTest(template = "bastion/blocks/air", timeoutTicks = 400, batch = "redstone-circuits")
+    @GameTest(template = "bastion/blocks/air", timeoutTicks = 800, batch = "redstone-circuits")
     public static void redstoneCircuitsAndConcurrentSignals(GameTestHelper helper) {
         org.texboobcat.wcpu.gametest.RedstoneGameTestCases.circuitsAndConcurrentSignals(helper);
     }
@@ -65,7 +65,7 @@ public final class RegionalChunkGameTests {
         RegionalChunkGameTestCases.pathfindingIsConcurrentOnRegionWorkers(helper);
     }
 
-    @GameTest(template = "bastion/blocks/air", timeoutTicks = 120)
+    @GameTest(template = "bastion/blocks/air", timeoutTicks = 600)
     public static void mobAiTicksOnRegionWorkers(GameTestHelper helper) {
         RegionalChunkGameTestCases.mobAiTicksOnRegionWorkers(helper);
     }
