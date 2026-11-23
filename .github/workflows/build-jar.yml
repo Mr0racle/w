@@ -1,13 +1,12 @@
 name: Build JAR
 
 # Builds the mod, runs the unit tests and the GameTest server, and attaches the NeoForge JAR
-# to the run so it can be downloaded without building locally. A pushed version tag (v1.3.0)
-# also publishes a GitHub Release with the JAR.
+# to the run so it can be downloaded without building locally. A push to main whose
+# mod_version has no release yet (v1.3.0, ...) also publishes one with the JAR attached.
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ['v*']
 
 permissions:
   contents: read
@@ -16,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Only the release step below writes; it runs for version tags.
+    # Only the release step below writes; it runs for pushes to main with a new version.
     permissions:
       contents: write
     steps:
@@ -37,14 +36,22 @@ jobs:
             !neoforge/build/libs/*-sources.jar
             !neoforge/build/libs/*-dev*.jar
           if-no-files-found: error
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish release for a new version
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          version=$(grep '^mod_version=' gradle.properties | cut -d= -f2)
+          tag="v${version}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag already exists"
+            exit 0
+          fi
           jar=$(ls neoforge/build/libs/*.jar | grep -v -e '-sources' -e '-dev' | head -n 1)
-          gh release create "$GITHUB_REF_NAME" "$jar" --title "wcpu ${GITHUB_REF_NAME#v}" \
-            --generate-notes --verify-tag
+          flags=""
+          case "$version" in 1.2.*) flags="--prerelease" ;; esac
+          gh release create "$tag" "$jar" --target "$GITHUB_SHA" --title "wcpu ${version}" \
+            --generate-notes $flags
       - name: Upload failure reports
         if: failure()
         uses: actions/upload-artifact@v7
