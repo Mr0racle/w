@@ -53,6 +53,7 @@ public final class RegionWorkers {
         // GC. Defaults to the pool size, i.e. no cap beyond the number of workers.
         int maxConcurrent = Integer.getInteger("wcpu.maxConcurrentRegionTasks", poolSize);
         scheduler = new RegionScheduler(poolSize, maxConcurrent);
+        org.texboobcat.wcpu.guard.RegionThreadContext.markServerThread();
         LOGGER.info("wcpu: started {} region worker thread(s), at most {} running at once",
             poolSize, Math.max(1, Math.min(maxConcurrent, poolSize)));
     }
@@ -63,7 +64,7 @@ public final class RegionWorkers {
         }
         try {
             if (!scheduler.shutdownAndAwait(10, TimeUnit.SECONDS)) {
-                LOGGER.warn("wcpu: region workers did not shut down within 20s");
+                LOGGER.warn("wcpu: region workers did not shut down within 10s");
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

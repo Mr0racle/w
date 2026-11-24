@@ -44,4 +44,19 @@ public final class RegionThreadContext {
     public static boolean onMainThread() {
         return CURRENT.get() == null;
     }
+
+    private static volatile Thread serverThread;
+
+    /** Remembers the server thread; called once when the region workers start on it. */
+    public static void markServerThread() {
+        serverThread = Thread.currentThread();
+    }
+
+    /**
+     * Whether this is the server thread itself, as opposed to any other thread that is not a
+     * region worker (network, mod and physics threads), which {@link #onMainThread()} also accepts.
+     */
+    public static boolean onServerThread() {
+        return CURRENT.get() == null && Thread.currentThread() == serverThread;
+    }
 }

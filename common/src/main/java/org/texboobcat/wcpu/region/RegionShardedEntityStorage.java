@@ -99,7 +99,7 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
     private void leaseForMainThread(long cell) {
         LevelRegionIndex bound = this.index;
         if (bound != null && !entityLeaseGivenUp && Config.asyncRegionLoops
-            && org.texboobcat.wcpu.guard.RegionThreadContext.onMainThread()
+            && org.texboobcat.wcpu.guard.RegionThreadContext.onServerThread()
             && !bound.leaseCell(cell, ENTITY_LEASE_NANOS)) {
             entityLeaseGivenUp = true;
             org.slf4j.LoggerFactory.getLogger(RegionShardedEntityStorage.class).warn(
