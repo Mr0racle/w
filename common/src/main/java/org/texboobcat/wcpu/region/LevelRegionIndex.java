@@ -1008,8 +1008,7 @@ public final class LevelRegionIndex implements RegionizerListener {
      * another thread must not change them until that phase ends.
      */
     public boolean ownedByBusyForeignRegion(Region mine, long chunkPos) {
-        return ForeignAccessStats.busyForeign(mine, this.regionizer.regionForChunkLong(chunkPos),
-            this.states);
+        return ForeignAccessStats.busyForeign(mine, this.regionizer, chunkPos, this.states);
     }
 
     public boolean chunkIdle(long chunkPos) {

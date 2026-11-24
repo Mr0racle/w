@@ -23,10 +23,17 @@ public final class ForeignAccessStats {
     }
 
     /** Whether {@code owner} is another region that is ticking its block entities right now. */
-    static boolean busyForeign(Region mine, Region owner,
-                                 it.unimi.dsi.fastutil.ints.Int2ObjectMap<RegionTickState> states) {
-        RegionTickState state = owner == null || owner == mine ? null : states.get(owner.id());
-        return state != null && state.inBlockEntityPhase();
+    static boolean busyForeign(Region mine, Regionizer regionizer, long chunkPos,
+                               it.unimi.dsi.fastutil.ints.Int2ObjectMap<RegionTickState> states) {
+        // Called on workers while the main thread may be rebuilding these maps. A torn read can
+        // give a stale answer or an index error; neither may fail the region, so both mean "no".
+        try {
+            Region owner = regionizer.regionForChunkLong(chunkPos);
+            RegionTickState state = owner == null || owner == mine ? null : states.get(owner.id());
+            return state != null && state.inBlockEntityPhase();
+        } catch (RuntimeException tornRead) {
+            return false;
+        }
     }
 
     /** Waits up to a timeout for the region to stop running; true if it is idle (or unknown). */

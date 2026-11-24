@@ -172,29 +172,41 @@ public final class RegionTracker {
     // nanoTime after which it resumes. Zero means a permanent degrade or no degrade at all.
     private static volatile long resumeAtNanos;
 
+    // Guards the pause/degrade state. A worker pausing and another degrading, or the main thread
+    // resuming after a pause while a worker degrades, must not interleave: a permanent degrade
+    // would be overwritten by a pause that later expires and switches parallel ticking back on.
+    private static final Object STATE_LOCK = new Object();
+
     public static boolean parallelAllowed() {
         if (parallelAllowed) {
             return true;
         }
-        long resume = resumeAtNanos;
-        if (resume != 0L && System.nanoTime() - resume >= 0L) {
-            resumeAtNanos = 0L;
-            degradeReason = null;
-            parallelAllowed = true;
-            return true;
+        synchronized (STATE_LOCK) {
+            if (parallelAllowed) {
+                return true;
+            }
+            long resume = resumeAtNanos;
+            if (resume != 0L && System.nanoTime() - resume >= 0L) {
+                resumeAtNanos = 0L;
+                degradeReason = null;
+                parallelAllowed = true;
+                return true;
+            }
+            return false;
         }
-        return false;
     }
 
     // Pauses parallel ticking for a while instead of for the whole session. For conditions that
     // pass by themselves, such as a worker meeting a chunk that is still being generated; a real
     // safety violation still degrades permanently, even while a pause is running.
     public static void pauseParallel(String reason, long millis) {
-        if (parallelAllowed) {
-            degradeReason = reason + " (paused " + millis + " ms)";
-            resumeAtNanos = Math.max(1L, System.nanoTime() + millis * 1_000_000L);
-            parallelAllowed = false;
-            LOGGER.info("wcpu: parallel ticking paused for {} ms: {}", millis, reason);
+        synchronized (STATE_LOCK) {
+            if (parallelAllowed) {
+                degradeReason = reason + " (paused " + millis + " ms)";
+                resumeAtNanos = Math.max(1L, System.nanoTime() + millis * 1_000_000L);
+                parallelAllowed = false;
+                LOGGER.info("wcpu: parallel ticking paused for {} ms: {}", millis, reason);
+            }
         }
     }
 
@@ -250,10 +262,16 @@ public final class RegionTracker {
 
     private static void degradeToSerial(String reasonCode, String reason,
                                         @Nullable Throwable failure) {
-        if (parallelAllowed || resumeAtNanos != 0L) {
-            resumeAtNanos = 0L;
-            parallelAllowed = false;
-            degradeReason = reason;
+        boolean changed;
+        synchronized (STATE_LOCK) {
+            changed = parallelAllowed || resumeAtNanos != 0L;
+            if (changed) {
+                resumeAtNanos = 0L;
+                parallelAllowed = false;
+                degradeReason = reason;
+            }
+        }
+        if (changed) {
             CompatibilityReporter.report("region-ticking", "serial-fallback",
                 "falling back to serial region ticking for this session: " + reason, failure,
                 reasonCode);
@@ -261,11 +279,13 @@ public final class RegionTracker {
     }
 
     public static void forceSerial(String reason) {
-        if (parallelAllowed || resumeAtNanos != 0L) {
-            resumeAtNanos = 0L;
-            parallelAllowed = false;
-            degradeReason = reason;
-            LOGGER.warn("wcpu: using serial region ticking: {}", reason);
+        synchronized (STATE_LOCK) {
+            if (parallelAllowed || resumeAtNanos != 0L) {
+                resumeAtNanos = 0L;
+                parallelAllowed = false;
+                degradeReason = reason;
+                LOGGER.warn("wcpu: using serial region ticking: {}", reason);
+            }
         }
     }
 

@@ -540,7 +540,7 @@ public abstract class ServerChunkCacheMixin implements LevelRegionIndex.Regional
 
     // Sable's plot container for this level, found on first use and then kept.
     @Unique
-    private Object wcpu$plots;
+    private volatile Object wcpu$plots;
 
     @Unique
     @Nullable

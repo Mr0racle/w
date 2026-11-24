@@ -110,8 +110,16 @@ public final class DeferredEntityCallbacks {
         while ((item = this.pending.poll()) != null) {
             this.draining.add(item);
         }
+        // An entity whose region was not ready keeps every later callback waiting too. Its region
+        // may finish while this loop runs, and a later callback (its removal) must not run ahead
+        // of an earlier one that was put back (its ticking start).
+        java.util.Set<Entity> held = null;
         while ((item = this.draining.poll()) != null) {
-            if (!ready.test(item.entity())) {
+            if ((held != null && held.contains(item.entity())) || !ready.test(item.entity())) {
+                if (held == null) {
+                    held = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+                }
+                held.add(item.entity());
                 this.pending.add(item);
                 continue;
             }
