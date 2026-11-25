@@ -275,6 +275,7 @@ public final class RegionTracker {
             CompatibilityReporter.report("region-ticking", "serial-fallback",
                 "falling back to serial region ticking for this session: " + reason, failure,
                 reasonCode);
+            IncidentReport.write(reasonCode, reason, failure);
         }
     }
 

@@ -121,6 +121,11 @@ public final class ForeignAccessStats {
         return lines;
     }
 
+    /** Entity-list reads cut short because another thread changed the list. */
+    public static long raceSkips() {
+        return RACE_SKIPS.sum();
+    }
+
     public static void reset() {
         RACE_SKIPS.reset();
         BY_TYPE.clear();

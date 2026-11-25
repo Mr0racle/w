@@ -46,7 +46,7 @@ final class StuckWatchdog {
         LOGGER.error(text.toString());
     }
 
-    private static boolean relevant(Thread thread, StackTraceElement[] stack) {
+    static boolean relevant(Thread thread, StackTraceElement[] stack) {
         String name = thread.getName();
         if (name.contains("Server thread") || name.toLowerCase(java.util.Locale.ROOT).contains("wcpu")) {
             return true;
