@@ -354,7 +354,8 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
             EntitySectionStorage<T> shard = workableShard(current, cell);
             if (shard != null) {
                 leaseForMainThread(cell);
-                shard.forEachAccessibleNonEmptySection(boundingBox, consumer);
+                ForeignAccessStats.tolerantWalk(
+                    () -> shard.forEachAccessibleNonEmptySection(boundingBox, consumer));
             }
             return;
         }
@@ -382,7 +383,8 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
                     boundingBox.maxY,
                     Math.min(boundingBox.maxZ,
                         RegionShardBounds.maxQueryBlock(cellZ, this.sectionShift)));
-                shard.forEachAccessibleNonEmptySection(shardBox, tracker);
+                ForeignAccessStats.tolerantWalk(
+                    () -> shard.forEachAccessibleNonEmptySection(shardBox, tracker));
                 if (tracker.aborted) {
                     return;
                 }

@@ -19,7 +19,29 @@ public final class ForeignAccessStats {
 
     private static final Map<String, LongAdder> BY_TYPE = new ConcurrentHashMap<>();
 
+    private static final org.slf4j.Logger LOGGER =
+        org.slf4j.LoggerFactory.getLogger(ForeignAccessStats.class);
+    private static final LongAdder RACE_SKIPS = new LongAdder();
+
     private ForeignAccessStats() {
+    }
+
+    /**
+     * Runs a read-only walk of an entity section list. A list changed by another thread under the
+     * iterator throws; the walk then simply stops for this query, which only means a few entities
+     * are not seen for one tick, instead of failing a player tick or degrading the whole server.
+     */
+    static void tolerantWalk(Runnable walk) {
+        try {
+            walk.run();
+        } catch (java.util.ConcurrentModificationException raced) {
+            long total = RACE_SKIPS.sum() + 1;
+            RACE_SKIPS.increment();
+            if (total == 1 || total % 1000 == 0) {
+                LOGGER.warn("wcpu: an entity list changed during a read on thread '{}'; the query"
+                    + " was cut short ({} so far)", Thread.currentThread().getName(), total);
+            }
+        }
     }
 
     /** Whether {@code owner} is another region that is ticking its block entities right now. */
@@ -100,6 +122,7 @@ public final class ForeignAccessStats {
     }
 
     public static void reset() {
+        RACE_SKIPS.reset();
         BY_TYPE.clear();
     }
 }
