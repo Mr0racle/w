@@ -154,7 +154,7 @@ final class WcpuReport {
         sendDominanceLine(source);
         long refused = RegionTracker.foreignBlockEntityRefusals();
         if (refused > 0) {
-            send(source, text(Lang.f("%d block entity access(es) across running regions refused (safe)",
+            send(source, text(Lang.f("%d access(es) across running regions refused (safe)",
                 refused), ChatFormatting.YELLOW));
             send(source, text("  " + String.join(", ", ForeignAccessStats.top(4)), ChatFormatting.GRAY));
         }

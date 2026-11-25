@@ -1011,6 +1011,11 @@ public final class LevelRegionIndex implements RegionizerListener {
         return ForeignAccessStats.busyForeign(mine, this.regionizer, chunkPos, this.states);
     }
 
+    /** See {@link ForeignAccessStats#cellBusyForeign}. */
+    public boolean cellBusyForeign(Region mine, long cell) {
+        return ForeignAccessStats.cellBusyForeign(mine, this.regionizer, cell, this.states);
+    }
+
     public boolean chunkIdle(long chunkPos) {
         Region region = this.regionizer.regionForChunkLong(chunkPos);
         return region == null || regionIdle(region.id());

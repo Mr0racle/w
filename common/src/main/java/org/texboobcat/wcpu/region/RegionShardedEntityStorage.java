@@ -109,6 +109,16 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
         }
     }
 
+    // A worker is not to walk the entity lists of another region that is running: its own workers
+    // change them, and a list changed under an iterator throws. Regions are kept a buffer apart, so
+    // ordinary queries never get here; a Sable plot makes distant sections reachable from the world.
+    private boolean skipBusyForeignShard(long cell) {
+        LevelRegionIndex bound = this.index;
+        org.texboobcat.wcpu.region.Region mine = org.texboobcat.wcpu.guard.RegionThreadContext.current();
+        return bound != null && mine != null && Config.asyncRegionLoops
+            && bound.cellBusyForeign(mine, cell);
+    }
+
     public void leaseSection(long sectionKey) {
         LevelRegionIndex bound = this.index;
         if (bound != null && Config.asyncRegionLoops
@@ -337,7 +347,7 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
         if (minCellX == maxCellX && minCellZ == maxCellZ) {
             long cell = RegionSectionPos.pack(minCellX, minCellZ);
             EntitySectionStorage<T> shard = current.get(cell);
-            if (shard != null) {
+            if (shard != null && !skipBusyForeignShard(cell)) {
                 leaseForMainThread(cell);
                 shard.forEachAccessibleNonEmptySection(boundingBox, consumer);
             }
@@ -349,7 +359,7 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
                 long cell = RegionSectionPos.pack(cellX, cellZ);
                 EntitySectionStorage<T> shard = current.get(cell);
-                if (shard == null) {
+                if (shard == null || skipBusyForeignShard(cell)) {
                     continue;
                 }
                 leaseForMainThread(cell);

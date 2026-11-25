@@ -44,6 +44,27 @@ public final class ForeignAccessStats {
         return state == null || state.awaitIdle(timeoutNanos);
     }
 
+    /**
+     * Whether a worker must not walk the entity sections of a cell: it belongs to another region
+     * that is running right now, and that region's workers add and remove entities in those lists.
+     * A world entity asking for neighbours through a Sable plot reaches such a cell.
+     */
+    static boolean cellBusyForeign(Region mine, Regionizer regionizer, long cell,
+                                   it.unimi.dsi.fastutil.ints.Int2ObjectMap<RegionTickState> states) {
+        try {
+            Region owner = regionizer.regionForSection(cell);
+            RegionTickState state = owner == null || owner == mine ? null : states.get(owner.id());
+            if (state != null && state.isInFlight()) {
+                RegionTracker.foreignBlockEntityRefused();
+                BY_TYPE.computeIfAbsent("entity sections", key -> new LongAdder()).increment();
+                return true;
+            }
+        } catch (RuntimeException tornRead) {
+            // a torn read of the maps the main thread rebuilds means "not busy"
+        }
+        return false;
+    }
+
     /** Counts one refusal against the type of the block entity that was asked for. */
     public static void record(ServerLevel level, BlockPos pos) {
         ChunkAccess chunk = level.getChunkSource().getChunk(pos.getX() >> 4, pos.getZ() >> 4,
