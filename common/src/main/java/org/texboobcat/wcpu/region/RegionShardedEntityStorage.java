@@ -112,11 +112,16 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
     // A worker is not to walk the entity lists of another region that is running: its own workers
     // change them, and a list changed under an iterator throws. Regions are kept a buffer apart, so
     // ordinary queries never get here; a Sable plot makes distant sections reachable from the world.
-    private boolean skipBusyForeignShard(long cell) {
+    private EntitySectionStorage<T> workableShard(Long2ObjectMap<EntitySectionStorage<T>> shards,
+                                                  long cell) {
+        EntitySectionStorage<T> shard = shards.get(cell);
         LevelRegionIndex bound = this.index;
         org.texboobcat.wcpu.region.Region mine = org.texboobcat.wcpu.guard.RegionThreadContext.current();
-        return bound != null && mine != null && Config.asyncRegionLoops
-            && bound.cellBusyForeign(mine, cell);
+        if (shard != null && bound != null && mine != null && Config.asyncRegionLoops
+            && bound.cellBusyForeign(mine, cell)) {
+            return null;
+        }
+        return shard;
     }
 
     public void leaseSection(long sectionKey) {
@@ -346,8 +351,8 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
         // in the game.
         if (minCellX == maxCellX && minCellZ == maxCellZ) {
             long cell = RegionSectionPos.pack(minCellX, minCellZ);
-            EntitySectionStorage<T> shard = current.get(cell);
-            if (shard != null && !skipBusyForeignShard(cell)) {
+            EntitySectionStorage<T> shard = workableShard(current, cell);
+            if (shard != null) {
                 leaseForMainThread(cell);
                 shard.forEachAccessibleNonEmptySection(boundingBox, consumer);
             }
@@ -358,8 +363,8 @@ public final class RegionShardedEntityStorage<T extends EntityAccess> extends En
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
                 long cell = RegionSectionPos.pack(cellX, cellZ);
-                EntitySectionStorage<T> shard = current.get(cell);
-                if (shard == null || skipBusyForeignShard(cell)) {
+                EntitySectionStorage<T> shard = workableShard(current, cell);
+                if (shard == null) {
                     continue;
                 }
                 leaseForMainThread(cell);

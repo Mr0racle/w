@@ -977,14 +977,7 @@ public final class LevelRegionIndex implements RegionizerListener {
     // region-owned state; it waits for one region only, so a slow region stalls the operations
     // that target it and nothing else.
     public void leaseCell(long cell) {
-        Region region = this.regionizer.regionForSection(cell);
-        if (region == null) {
-            return;
-        }
-        RegionTickState state = this.states.get(region.id());
-        if (state != null) {
-            state.awaitIdle();
-        }
+        ForeignAccessStats.awaitOwner(this.regionizer.regionForSection(cell), this.states);
     }
 
     /** Waits for the region owning a cell, but only so long; returns false if it kept running. */

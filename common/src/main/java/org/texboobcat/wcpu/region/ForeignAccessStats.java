@@ -36,6 +36,15 @@ public final class ForeignAccessStats {
         }
     }
 
+    /** Waits, without limit, for the region to stop running; does nothing for an unknown one. */
+    static void awaitOwner(Region owner,
+                           it.unimi.dsi.fastutil.ints.Int2ObjectMap<RegionTickState> states) {
+        RegionTickState state = owner == null ? null : states.get(owner.id());
+        if (state != null) {
+            state.awaitIdle();
+        }
+    }
+
     /** Waits up to a timeout for the region to stop running; true if it is idle (or unknown). */
     static boolean awaitOwner(Region owner,
                               it.unimi.dsi.fastutil.ints.Int2ObjectMap<RegionTickState> states,
