@@ -155,10 +155,15 @@ public final class RegionWorkers {
         }
 
         void awaitIdle() {
+            long started = System.nanoTime();
             synchronized (this) {
                 while (this.active.get() > 0) {
                     try {
-                        this.wait();
+                        this.wait(StuckWatchdog.AFTER_NANOS / 1_000_000L);
+                        if (this.active.get() > 0
+                            && System.nanoTime() - started >= StuckWatchdog.AFTER_NANOS) {
+                            StuckWatchdog.report("the region worker tasks to finish");
+                        }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         throw new IllegalStateException("interrupted waiting for region workers", e);

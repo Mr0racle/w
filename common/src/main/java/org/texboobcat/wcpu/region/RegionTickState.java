@@ -195,8 +195,12 @@ public final class RegionTickState {
             }
             Thread.onSpinWait();
         }
+        long started = System.nanoTime();
         while (this.inFlight.get()) {
             java.util.concurrent.locks.LockSupport.parkNanos(50_000L);
+            if (System.nanoTime() - started >= StuckWatchdog.AFTER_NANOS) {
+                StuckWatchdog.report("region #" + this.regionId + " to finish its tick");
+            }
         }
     }
 
