@@ -27,6 +27,7 @@
     "PersistentEntitySectionManagerMixin",
     "RaidMixin",
     "RedStoneWireBlockMixin",
+    "SableSinkMixin",
     "RedstoneTorchBlockMixin",
     "RedstoneTorchBlockMixin$ToggleAccessor",
     "ServerChunkCacheMixin",
