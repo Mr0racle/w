@@ -32,8 +32,10 @@ public final class WcpuNeoForgeConfig {
             "Sections within this Chebyshev distance belong to the same region.",
             "Two distinct regions are therefore always more than this many sections apart,",
             "which is the buffer that makes cross-region reads safe.",
-            "With sectionShift 2 and mergeRadius 2 the guaranteed buffer is 128 blocks.")
-        .defineInRange("regions.mergeRadius", 2, 1, 16);
+            "With sectionShift 2 and mergeRadius 2 the guaranteed buffer is 128 blocks.",
+            "At least 2: a worker may write the cell next to its own, and with 1 two regions could",
+            "share that cell. Applies at the next server start.")
+        .defineInRange("regions.mergeRadius", 2, 2, 16);
 
     private static final ModConfigSpec.IntValue VERIFY_INTERVAL = BUILDER
         .comment(
@@ -297,7 +299,8 @@ public final class WcpuNeoForgeConfig {
 
     static boolean needsRestart(String path) {
         return path.equals("regions.enabled") || path.equals("regions.sectionShift")
-            || path.equals("regions.scopedScheduledTicks") || path.equals("regions.shardEntityStorage");
+            || path.equals("regions.scopedScheduledTicks") || path.equals("regions.shardEntityStorage")
+            || path.equals("regions.mergeRadius") || path.equals("regions.threadLocalRandom");
     }
 
     @SuppressWarnings("unchecked")
@@ -308,14 +311,14 @@ public final class WcpuNeoForgeConfig {
     static void apply() {
         org.texboobcat.wcpu.Lang.set(LANGUAGE.get());
         Config.apply(new Config.Values(
-            atStartup(REGIONS_ENABLED), atStartup(SECTION_SHIFT), MERGE_RADIUS.get(), VERIFY_INTERVAL.get(),
+            atStartup(REGIONS_ENABLED), atStartup(SECTION_SHIFT), atStartup(MERGE_RADIUS), VERIFY_INTERVAL.get(),
             SCOPED_ENTITY_TICKING.get(), SCOPED_BLOCK_ENTITY_TICKING.get(),
             atStartup(SCOPED_SCHEDULED_TICKS), SCOPED_BLOCK_EVENTS.get(), ADAPTIVE_THROTTLING.get(),
             REGION_BUDGET_MILLIS.get(), TARGET_TICK_MILLIS.get(), MIN_THROTTLE_MILLIS.get(),
             MAX_TICK_DIVISOR.get(), atStartup(SHARD_ENTITY_STORAGE), ASSERT_SHARD_OWNERSHIP.get(),
             PARALLEL_TICKING.get(), DIRECT_WORKER_CHUNK_READS.get(),
             PARALLEL_NATURAL_SPAWNING.get(), ASYNC_REGION_LOOPS.get(), WORKER_THREADS.get(),
-            THREAD_LOCAL_RANDOM.get(), SERIALIZE_ENTITY_TICKS.get(),
+            atStartup(THREAD_LOCAL_RANDOM), SERIALIZE_ENTITY_TICKS.get(),
             MAIN_THREAD_ENTITIES.get().stream().map(String::valueOf).toList(),
             DIAGNOSE_ENTITY_SECTION_RACES.get(), STRICT_GUARD.get(),
             LOG_REGION_CHANGES.get()));
