@@ -26,7 +26,7 @@ public abstract class ServerLevelRedstoneMixin {
         ServerLevel level = (ServerLevel) (Object) this;
         if (!RedstoneUpdates.canRun(level, pos)) {
             BlockPos source = pos.immutable();
-            RedstoneUpdates.defer(() -> level.updateNeighborsAt(source, block));
+            RedstoneUpdates.defer(level, source, () -> level.updateNeighborsAt(source, block));
             ci.cancel();
         }
     }
@@ -36,7 +36,8 @@ public abstract class ServerLevelRedstoneMixin {
         ServerLevel level = (ServerLevel) (Object) this;
         if (!RedstoneUpdates.canRun(level, pos)) {
             BlockPos source = pos.immutable();
-            RedstoneUpdates.defer(() -> level.updateNeighborsAtExceptFromFacing(source, block, facing));
+            RedstoneUpdates.defer(level, source,
+                () -> level.updateNeighborsAtExceptFromFacing(source, block, facing));
             ci.cancel();
         }
     }
@@ -48,7 +49,7 @@ public abstract class ServerLevelRedstoneMixin {
             && (block instanceof RedstoneTorchBlock || block instanceof DiodeBlock || block instanceof ObserverBlock)
             && !RedstoneUpdates.canRun(level, pos)) {
             BlockPos target = pos.immutable();
-            RedstoneUpdates.defer(() -> this.tickBlock(target, block));
+            RedstoneUpdates.defer(level, target, () -> this.tickBlock(target, block));
             ci.cancel();
         }
     }

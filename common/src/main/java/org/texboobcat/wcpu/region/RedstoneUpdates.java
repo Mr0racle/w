@@ -74,4 +74,19 @@ public final class RedstoneUpdates {
     public static void defer(Runnable update) {
         DeferredMainThreadWork.deferGlobal(MainThreadBoundaries.Boundary.CROSS_REGION_WRITES, update);
     }
+
+    // The update replays later on the main thread. If it targets a Sable plot that was removed in
+    // between (a sub-level dissolved or was unloaded), the plot no longer exists and Sable throws
+    // on any block change there, so the update is dropped: there is nothing left to notify.
+    public static void defer(net.minecraft.server.level.ServerLevel level, BlockPos source,
+                             Runnable update) {
+        int chunkX = source.getX() >> 4;
+        int chunkZ = source.getZ() >> 4;
+        defer(() -> {
+            if (org.texboobcat.wcpu.SablePlots.isGoneFromGrid(level, chunkX, chunkZ)) {
+                return;
+            }
+            update.run();
+        });
+    }
 }

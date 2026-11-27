@@ -155,6 +155,12 @@ public final class SablePlots {
         }
     }
 
+    /** True when the position is in Sable's plot grid but no plot chunk exists there any more. */
+    public static boolean isGoneFromGrid(ServerLevel level, int x, int z) {
+        Object plots = containerOf(level);
+        return plots != null && inGrid(plots, x, z) && chunk(plots, level, x, z, false) == null;
+    }
+
     private static EmptyLevelChunk emptyChunk(ServerLevel level) {
         return new EmptyLevelChunk(level, new ChunkPos(0, 0),
             level.registryAccess().registryOrThrow(Registries.BIOME).getHolderOrThrow(Biomes.PLAINS));
