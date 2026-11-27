@@ -19,6 +19,20 @@ public abstract class MinecraftServerMixin {
     @Unique
     private static final Logger WCPU$LOGGER = LogUtils.getLogger();
 
+    // A mod's tick listener that walks its own unsynchronised list while a region worker changes it
+    // throws here. One skipped tick costs little; the exception would end the server instead.
+    @WrapMethod(method = "tickChildren")
+    private void wcpu$tolerateRacedModTick(java.util.function.BooleanSupplier hasTimeLeft,
+                                            Operation<Void> original) {
+        try {
+            original.call(hasTimeLeft);
+        } catch (java.util.ConcurrentModificationException raced) {
+            if (!org.texboobcat.wcpu.TickGuard.tolerate(raced)) {
+                throw raced;
+            }
+        }
+    }
+
     @WrapMethod(method = "saveAllChunks")
     private boolean wcpu$runSaveBoundary(boolean suppressLogs, boolean flush, boolean force,
                                             Operation<Boolean> original) {
