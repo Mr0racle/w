@@ -22,8 +22,15 @@ public final class BuiltInCompatibility {
     // Block entities that must tick on the main thread. Simulated's bearings, and the other blocks
     // that assemble a structure, create a sub-level from inside their own tick, which allocates
     // plot chunks and touches shared state a region worker does not own.
+    //
+    // Create's redstone links register in one network map per level that every link and the linked
+    // controller read and rewrite. Create Connected's wildcard links walk that same map. Two
+    // threads touching it at once threw a ConcurrentModificationException on the server thread, so
+    // the link block entities tick on the main thread together with the controller.
     private static final Map<String, List<String>> MAIN_THREAD_BLOCK_ENTITIES = Map.of(
-        "simulated", List.of("simulated:*"));
+        "simulated", List.of("simulated:*"),
+        "create", List.of("create:redstone_link"),
+        "create_connected", List.of("create_connected:linked_transmitter"));
 
     private BuiltInCompatibility() {
     }

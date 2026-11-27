@@ -26,5 +26,9 @@ class BuiltInCompatibilityTest {
         assertTrue(BuiltInCompatibility.mainThreadBlockEntities(id -> false).isEmpty());
         assertEquals(List.of("simulated:*"),
             BuiltInCompatibility.mainThreadBlockEntities("simulated"::equals));
+        assertEquals(List.of("create:redstone_link"),
+            BuiltInCompatibility.mainThreadBlockEntities("create"::equals));
+        assertEquals(List.of("create_connected:linked_transmitter"),
+            BuiltInCompatibility.mainThreadBlockEntities("create_connected"::equals));
     }
 }
