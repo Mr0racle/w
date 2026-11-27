@@ -33,6 +33,7 @@
     "ServerChunkCacheMixin",
     "ServerGamePacketListenerMixin",
     "accessor.ServerLevelEntityManagerAccessor",
+    "ServerEntityMixin",
     "ServerLevelMixin",
     "ServerLevelRedstoneMixin",
     "accessor.WalkNodeEvaluatorInvoker",
