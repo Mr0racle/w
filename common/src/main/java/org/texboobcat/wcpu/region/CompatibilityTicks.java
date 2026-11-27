@@ -32,7 +32,7 @@ public final class CompatibilityTicks {
                 throw failure;
             }
         });
-        if (!deferEntity(entity.getType(), tick)) {
+        if (!deferSubLevelEntity(entity, tick) && !deferEntity(entity.getType(), tick)) {
             tick.run();
         }
     }
@@ -79,6 +79,16 @@ public final class CompatibilityTicks {
         synchronized (ENTITY_TICK_LOCK) {
             tick.run();
         }
+    }
+
+    // Sable updates sub-level poses on the main thread, so an entity bound to one must not be
+    // ticked by a worker at the same time.
+    private static boolean deferSubLevelEntity(Entity entity, Runnable tick) {
+        if (!RegionWorkers.isWorkerThread() || !org.texboobcat.wcpu.SableTracking.isBoundToSubLevel(entity)) {
+            return false;
+        }
+        DeferredMainThreadWork.deferGlobal(MainThreadBoundaries.Boundary.MOD_COMPATIBILITY, tick);
+        return true;
     }
 
     static boolean deferEntity(EntityType<?> type, Runnable tick) {
