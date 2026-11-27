@@ -6,7 +6,8 @@
   "mixins": [
     "BlockDropCaptureMixin",
     "NeoForgeLevelMixin",
-    "PersistentEntityCallbackMixin"
+    "PersistentEntityCallbackMixin",
+    "RedstoneLinkNetworkMixin"
   ],
   "client": [],
   "injectors": {

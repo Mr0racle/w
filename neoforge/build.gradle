@@ -62,6 +62,8 @@ dependencies {
     neoForge "net.neoforged:neoforge:${rootProject.neo_version}"
     modImplementation "dev.architectury:architectury-neoforge:${rootProject.architectury_api_version}"
     modRuntimeOnly "curse.maven:cupboard-326652:8623569"
+    // Compile-only: lets the link-network lock mixin name Create's types. Never bundled or run.
+    modCompileOnly("com.simibubi.create:create-1.21.1:6.0.10-281:slim") { transitive = false }
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle(project(path: ':common', configuration: 'transformProductionNeoForge')) { transitive false }
